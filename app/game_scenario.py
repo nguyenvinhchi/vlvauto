@@ -30,8 +30,8 @@ LOGGER.addHandler(stream_handler)
 file_handler = RotatingFileHandler(
     "log/auto-tool.log",  # log file path
     mode='a',
-    maxBytes=1 * 1024 * 1024,  # 1MB
-    backupCount=3,            # keep 3 backups: auto-tool.log.1, .2, .3
+    maxBytes= 128 * 1024,  # 128k
+    backupCount=1,            # keep 3 backups: auto-tool.log.1, .2, .3
     encoding='utf-8',
     delay=False
 )
@@ -39,15 +39,6 @@ file_handler.setLevel(log_level)
 file_handler.setFormatter(formatter)
 LOGGER.addHandler(file_handler)
 
-
-# LOGGER.basicConfig(
-#     level=LOGGER.INFO,  # or DEBUG, WARNING, ERROR, CRITICAL
-#     format="%(asctime)s [%(levelname)s] %(message)s",
-#     handlers=[
-#         LOGGER.FileHandler("log/vlv_auto_log.log"),  # Save to file
-#         LOGGER.StreamHandler()  # Also print to console
-#     ]
-# )
 
 class GameScenario:
     DETECT_RETRY=3
@@ -75,13 +66,13 @@ class GameScenario:
         pass
 
 class StuckBuyingGameScenario(GameScenario):
-    lower_color_range = [19, 0, 0]
-    upper_color_range = [45, 75, 135]
+    lower_color_range = [19, 19, 0]
+    upper_color_range = [255, 255, 255]
     def __init__(self):
         super().__init__()
         self.images = [
-            read_image_file('app/images/vlv-stuck-buying-med-shop_1_masked.png'),
-            read_image_file('app/images/vlv-stuck-buying-med-bag_1_masked.png')
+            read_image_file('app/images/mumu/vlv-stuck-buying-med-shop_2_masked.png'),
+            read_image_file('app/images/mumu/vlv-stuck-buying-med-bag_2_masked.png')
         ]
         
     def detect_and_solve(self, game_window, screenshot):
@@ -90,19 +81,23 @@ class StuckBuyingGameScenario(GameScenario):
             LOGGER.info(f'Found medicine shop stuck - {game_window.title}')
             self._close_medicine_shop(game_window, match1)
             
-        # match2 = self._detect_medicine_bag(self.images[1], screenshot)
-        # if match2:
-        #     self._close_medicine_bag(game_window, match2)
+        match2 = self._detect_medicine_bag(self.images[1], screenshot)
+        if match2:
+            self._close_medicine_bag(game_window, match2)
 
     def _detect_medicine_shop(self, pattern_img, screenshot):
         return self.detect(pattern_img, screenshot,
                            lower_color_range=self.lower_color_range,
-                           upper_color_range=self.upper_color_range)
+                           upper_color_range=self.upper_color_range,
+                           threshold=0.6
+                           )
 
     def _detect_medicine_bag(self, pattern_img, screenshot):
         return self.detect(pattern_img, screenshot,
                            lower_color_range=self.lower_color_range,
-                           upper_color_range=self.upper_color_range)
+                           upper_color_range=self.upper_color_range,
+                           threshold=0.6
+                           )
     
     def _close_medicine_shop(self, game_window, match):
         (x, y), w, h = match
@@ -134,16 +129,14 @@ class StuckBuyingGameScenario(GameScenario):
 class TownStuckGameScenario(GameScenario):
     TOWN_STUCK_SECONDS = 20
     COOLDOWN_SECONDS = 10  # prevent immediate re-match
-    # lower_color_range = [53, 53, 8]
-    # upper_color_range = [71, 255, 255]
     lower_color_range = [38, 206, 0]
     upper_color_range = [94, 255, 165]
     
     def __init__(self):
         super().__init__()
         self.images = [
-            read_image_file('app/images/vlv-DuongChau-smallmap_1_masked.png'),
-            read_image_file('app/images/vlv-DuongChau-smallmap_2_masked.png')
+            read_image_file('app/images/mumu/vlv-DuongChau-smallmap_1_masked.png'),
+            read_image_file('app/images/mumu/vlv-DuongChau-smallmap_2_masked.png')
         ]
         self.first_match_timestamp = {}
         self.last_solved_timestamp = {}

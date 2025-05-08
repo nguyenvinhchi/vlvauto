@@ -26,12 +26,12 @@ class DetectGameWidgetTests(TestCase):
             print('Not found')
 
     def test_detect_buying_shop_pattern(self):
-        pattern_template_path = "images/output/vlv-stuck-buying-med-shop_1_masked.png"
-        screenshot_image_path = "images/input/vlv-stuck-buying-med-fullmap_1.png"
+        pattern_template_path = "images/output/vlv-stuck-buying-med-shop_2_masked.png"
+        screenshot_image_path = "tests/test_assets/buying_stuck/vlv-stuck-buying-med_truecolor.png"
         pattern_img = read_image_file(pattern_template_path)
         screenshot_img = read_image_file(screenshot_image_path)
-        lower_color_range = [19, 0, 0]
-        upper_color_range = [45, 75, 135]
+        lower_color_range = [19, 19, 0]
+        upper_color_range = [255, 255, 255]
         r = detect_pattern(pattern_img, screenshot_img, 
                            lower_color_range=lower_color_range,
                            upper_color_range=upper_color_range,
@@ -45,21 +45,18 @@ class DetectGameWidgetTests(TestCase):
             print('Not found')
 
     def test_detect_buying_bag_pattern(self):
-        # pattern_template_path = "images/output/vlv-LDQ-smallmap_2_masked.png"
-        # pattern_template_path = "images/output/vlv-DuongChau-smallmap_2_masked.png"
-        pattern_template_path = "images/output/vlv-DuongChau-smallmap_1_masked.png"
-        # screenshot_image_path = "images/input/vlv-DuongChau-fullmap_1.png"
-        screenshot_image_path = "images/input/vlv-DuongChau-fullmap_4.png"
+        pattern_template_path = "images/output/vlv-stuck-buying-med-bag_2_masked.png"
+        screenshot_image_path = "tests/test_assets/buying_stuck/vlv-stuck-buying-med_truecolor.png"
         pattern_img = read_image_file(pattern_template_path)
         screenshot_img = read_image_file(screenshot_image_path)
-        lower_color_range = [38, 206, 0]
-        upper_color_range = [94, 255, 165]
+        lower_color_range = [19, 19, 0]
+        upper_color_range = [255, 255, 255]
         r = detect_pattern(pattern_img, screenshot_img, 
                            lower_color_range=lower_color_range,
                            upper_color_range=upper_color_range,
                            is_pattern_img_masked=True, 
                            is_screenshot_img_masked=False, 
-                           threshold=0.7)
+                           threshold=0.6)
         if r:
             m, w, h = r
             print(f'Found matched size: {w}, {h}')

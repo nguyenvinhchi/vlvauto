@@ -21,6 +21,8 @@ class HSVColorPickerApp:
         # self.upper = [71, 255, 255]
 
         #stuck shop detect buttons
+        # self.lower = [19, 19, 0]
+        # self.upper = [255, 255, 255]
         # self.lower = [19, 0, 0]
         # self.upper = [45, 75, 135]
 

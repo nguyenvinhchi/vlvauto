@@ -42,7 +42,7 @@ class AutoMainWindow:
         self.scheduled = None
         self.running = False  # Track whether it's running
         self.status_text = "auto vltk"
-        self.WINDOW_TITLE_PATTERN = "#N"
+        self.WINDOW_TITLE_PATTERN = "JX"
 
         self._setup_ui()
         self._create_status_overlay()
