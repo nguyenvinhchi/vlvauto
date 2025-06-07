@@ -90,7 +90,7 @@ class StuckBuyingGameScenario(GameScenario):
         self.solve_action_requested.emit('close_medicine_bag', game_window._hWnd, (start_x, start_y))
 
 class TownStuckGameScenario(GameScenario):
-    TOWN_STUCK_SECONDS = 20
+    TOWN_STUCK_SECONDS = 120
     COOLDOWN_SECONDS = 10  # prevent immediate re-match
     move_around_x_offset = 120
     move_around_y_offset = 120
@@ -101,7 +101,14 @@ class TownStuckGameScenario(GameScenario):
         super().__init__()
         self.images = [
             read_image_file('app/images/mumu/vlv-DuongChau-smallmap_1_masked.png'),
-            read_image_file('app/images/mumu/vlv-DuongChau-smallmap_2_masked.png')
+            read_image_file('app/images/mumu/vlv-DuongChau-smallmap_2_masked.png'),
+            read_image_file('app/images/mumu/vlv-BienKinh-smallmap_1_masked.png'),
+            read_image_file('app/images/mumu/vlv-DaiLy-smallmap_1_masked.png'),
+            read_image_file('app/images/mumu/vlv-DaiLy-smallmap_2_masked.png'),
+            read_image_file('app/images/mumu/vlv-LamAn-smallmap_1_masked.png'),
+            read_image_file('app/images/mumu/vlv-PhuongTuong-smallmap_1_masked.png'),
+            read_image_file('app/images/mumu/vlv-ThanhDo-smallmap_1_masked.png'),
+            read_image_file('app/images/mumu/vlv-TuongDuong-smallmap_1_masked.png')
         ]
         self.first_match_timestamp = {}
         self.last_solved_timestamp = {}
