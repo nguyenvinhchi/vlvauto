@@ -1,21 +1,19 @@
 
 
 import time
+from app.overlay_box import show_overlay_box
+from app.send_window_event import focus_window, simulate_click, simulate_mouse_move_around
 from app.detect_game_widget import detect_pattern, read_image_file
 from app.log_factory import create_logger
 
 
 LOGGER = create_logger()
 
-from PyQt6.QtCore import QObject, pyqtSignal
-
-class GameScenario(QObject):
+class GameScenario:
     DETECT_RETRY=3
-    solve_action_requested = pyqtSignal(str, int, tuple)  # solve_action_type, window_handle_no, points tuple
-
     def __init__(self):
-        super().__init__()
         self.images = []
+        self.game_window = None
 
     def detect_and_solve(self, game_window, screenshot):
         pass
@@ -47,17 +45,14 @@ class StuckBuyingGameScenario(GameScenario):
         ]
         
     def detect_and_solve(self, game_window, screenshot):
-        try:
-            match1 = self._detect_medicine_shop(self.images[0], screenshot)
-            if match1:
-                LOGGER.info(f'Found medicine shop stuck - {game_window.title}')
-                self._close_medicine_shop(game_window, match1)
-                
-            match2 = self._detect_medicine_bag(self.images[1], screenshot)
-            if match2:
-                self._close_medicine_bag(game_window, match2)
-        except Exception as e:
-            LOGGER.error(f'An error occured during  detect & solve medicine stuck: {e}')
+        match1 = self._detect_medicine_shop(self.images[0], screenshot)
+        if match1:
+            LOGGER.info(f'Found medicine shop stuck - {game_window.title}')
+            self._close_medicine_shop(game_window, match1)
+            
+        match2 = self._detect_medicine_bag(self.images[1], screenshot)
+        if match2:
+            self._close_medicine_bag(game_window, match2)
 
     def _detect_medicine_shop(self, pattern_img, screenshot):
         return self.detect(pattern_img, screenshot,
@@ -77,23 +72,32 @@ class StuckBuyingGameScenario(GameScenario):
         (x, y), w, h = match
         screen_x = game_window.left + x
         screen_y = game_window.top + y
-        start_x, start_y = screen_x + w//4, screen_y + h//2
-        LOGGER.info(f"🎯 Found med shop stuck at ({screen_x}, {screen_y}), size: {w}x{h} - {game_window.title}")
-        self.solve_action_requested.emit('close_medicine_shop', game_window._hWnd, (start_x, start_y))
+        # print(f"🎯 Found at ({screen_x}, {screen_y}), size: {w}x{h}")
+        show_overlay_box(screen_x, screen_y, w, h)
+        # simulate click
+        # 🧠 FOCUS FIRST
+        focus_window(game_window._hWnd)
+
+        # ✅ Click after focusing
+        LOGGER.info(f'Try to solve medicine shop stuck: click Close button - {game_window.title}')
+        simulate_click(screen_x + w//4, screen_y + h//2)
     
     def _close_medicine_bag(self, game_window, match):
         (x, y), w, h = match
         screen_x = game_window.left + x
         screen_y = game_window.top + y
-        start_x, start_y = screen_x + 3*w//4, screen_y + h//2
-        LOGGER.info(f"🎯 Found med bag stuck at ({screen_x}, {screen_y}), size: {w}x{h} - {game_window.title}")
-        self.solve_action_requested.emit('close_medicine_bag', game_window._hWnd, (start_x, start_y))
+        LOGGER.info(f"🎯 Found at ({screen_x}, {screen_y}), size: {w}x{h} - {game_window.title}")
+        show_overlay_box(screen_x, screen_y, w, h)
+        # simulate click
+        # 🧠 FOCUS FIRST
+        focus_window(game_window._hWnd)
+
+        # ✅ Click after focusing
+        simulate_click(screen_x + 3*w//4, screen_y + h//2)
 
 class TownStuckGameScenario(GameScenario):
     TOWN_STUCK_SECONDS = 20
     COOLDOWN_SECONDS = 10  # prevent immediate re-match
-    move_around_x_offset = 120
-    move_around_y_offset = 120
     lower_color_range = [38, 206, 0]
     upper_color_range = [94, 255, 165]
     
@@ -107,27 +111,24 @@ class TownStuckGameScenario(GameScenario):
         self.last_solved_timestamp = {}
         
     def detect_and_solve(self, game_window, screenshot):
-        try:
-            elapsed_seconds = self._get_stuck_elaped_seconds(game_window, screenshot)
+        elapsed_seconds = self._get_stuck_elaped_seconds(game_window, screenshot)
 
-            # it's time to solve the stuck
-            if elapsed_seconds is not None:
-                LOGGER.debug(f"Town stuck elaped time: {elapsed_seconds} - {game_window.title}")
+        # it's time to solve the stuck
+        if elapsed_seconds is not None:
+            LOGGER.debug(f"Town stuck elaped time: {elapsed_seconds} - {game_window.title}")
 
-                # Cooldown check
-                now = time.time()
-                if now - self.last_solved_timestamp.get(game_window.title, 0) < self.COOLDOWN_SECONDS:
-                    LOGGER.debug(f"⏳ In cooldown period, skipping... - {game_window.title}")
-                    return
-                
-                if elapsed_seconds >= self.TOWN_STUCK_SECONDS:
-                    # reset first match time
-                    LOGGER.info(f'stuck in town for {elapsed_seconds}, try to solve - {game_window.title}')
-                    self._solve_town_stuck(game_window)
-                    self.first_match_timestamp[game_window.title] = 0
-                    self.last_solved_timestamp[game_window.title] = now
-        except Exception as e:
-            LOGGER.error(f'An error occured during  detect & solve town stuck: {e}')
+            # Cooldown check
+            now = time.time()
+            if now - self.last_solved_timestamp.get(game_window.title, 0) < self.COOLDOWN_SECONDS:
+                LOGGER.debug(f"⏳ In cooldown period, skipping... - {game_window.title}")
+                return
+            
+            if elapsed_seconds >= self.TOWN_STUCK_SECONDS:
+                # reset first match time
+                LOGGER.info(f'stuck in town for {elapsed_seconds}, try to solve - {game_window.title}')
+                self.first_match_timestamp[game_window.title] = 0
+                self.last_solved_timestamp[game_window.title] = now
+                self._solve_town_stuck(game_window)
 
     def _detect_town_stuck(self, pattern_img, screenshot_img):
         return detect_pattern(pattern_img, screenshot_img,
@@ -155,9 +156,8 @@ class TownStuckGameScenario(GameScenario):
         return None
 
     def _solve_town_stuck(self, game_window):
+        focus_window(game_window._hWnd)
         LOGGER.info(f'Try to solve town stuck: move around - {game_window.title}')
-        start_x = game_window.left + self.move_around_x_offset
-        start_y = game_window.bottom - self.move_around_y_offset
-        self.solve_action_requested.emit('move_around_abit', game_window._hWnd, (start_x, start_y))
+        simulate_mouse_move_around(game_window)
 
 

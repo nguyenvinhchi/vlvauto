@@ -107,21 +107,6 @@ class CaptureTool:
             # cv2.imwrite(filename, screenshot)
             cv2.imwrite(filename, gray)
             print(f"✅ Saved as: {filename}")
-
-    # @staticmethod
-    # def get_window_screenshot(window):
-    #     region = {
-    #         "top": window.top,
-    #         "left": window.left,
-    #         "width": window.width,
-    #         "height": window.height
-    #     }
-    #     return CaptureTool.get_screenshot(region)
-
-    # @staticmethod
-    # def get_screenshot(region):
-    #     with mss.mss() as sct:
-    #         return np.array(sct.grab(region))
     
     def run(self):
         self.root.mainloop()

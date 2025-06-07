@@ -12,20 +12,6 @@ class HSVColorPickerApp:
         self.root = root
         self.root.title("HSV Color Picker Tool")
 
-        # Default HSV bounds
-        # self.lower = [40, 40, 40]
-        # self.upper = [90, 255, 255]
-
-        # stuck Duong Chau town detect words
-        # self.lower = [53, 53, 8]
-        # self.upper = [71, 255, 255]
-
-        #stuck shop detect buttons
-        # self.lower = [19, 19, 0]
-        # self.upper = [255, 255, 255]
-        # self.lower = [19, 0, 0]
-        # self.upper = [45, 75, 135]
-
         # green text reading
         self.lower = [38, 206, 0]
         self.upper = [94, 255, 165]
@@ -73,15 +59,10 @@ class HSVColorPickerApp:
         # Create mask & highlighted result
         mask = cv2.inRange(self.hsv, np.array(self.lower), np.array(self.upper))
         mask_inv = cv2.bitwise_not(mask)
-
-        # dark = (self.image * 0.2).astype(np.uint8)
-        # result = cv2.bitwise_and(self.image, self.image, mask=mask) + \
-        #          cv2.bitwise_and(dark, dark, mask=mask_inv)
         
         black_bg = np.zeros_like(self.image)
         result = cv2.bitwise_and(self.image, self.image, mask=mask) + \
                  cv2.bitwise_and(black_bg, black_bg, mask=mask_inv)
-
 
         self.filtered_image = result  # Save result for saving to file
 

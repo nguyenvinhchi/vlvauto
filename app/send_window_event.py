@@ -12,6 +12,7 @@ def focus_window(hwnd):
     except Exception as e:
         print(f"❌ Could not focus window: {e}")
 
+
 def simulate_click(x, y):
     # Move cursor (optional, for debug)
     win32api.SetCursorPos((x, y))
@@ -52,11 +53,8 @@ def simulate_mouse_drag(start_x, start_y, direction='up', distance=40):
 
     # print(f"🖱️ Drag simulated {direction} from ({start_x}, {start_y})")
 
-mouse_x_offset = 120
-mouse_y_offset = 120
-def simulate_mouse_move_around(window):
-    start_x = window.left + mouse_x_offset
-    start_y = window.bottom - mouse_y_offset
+
+def simulate_mouse_move_around(start_x, start_y):
     simulate_mouse_drag(start_x, start_y, direction='up')
     simulate_mouse_drag(start_x, start_y, direction='down')
     simulate_mouse_drag(start_x, start_y, direction='right')

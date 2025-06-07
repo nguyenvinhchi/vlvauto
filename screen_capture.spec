@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['auto_qt_main.py'],
+    ['screen_capture_app.py'],
     pathex=[],
     binaries=[],
-    datas=[('app/images', 'app/images')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='game_tool',
+    name='screen_capture',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

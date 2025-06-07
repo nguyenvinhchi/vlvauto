@@ -2,7 +2,7 @@
 
 # Build settings
 PATH_SEPARATOR=":"
-SCRIPT="auto_qt_main.py"
+SCRIPT="screen_capture_app.py"
 DIST_FOLDER="dist"
 BUILD_FOLDER="build"
 SPEC_FILE="${SCRIPT%.py}.spec"
@@ -14,8 +14,7 @@ rm -rf "$BUILD_FOLDER" "$DIST_FOLDER" "$SPEC_FILE"
 # Run PyInstaller
 echo "🚀 Building executable with PyInstaller..."
 pyinstaller --noconfirm --onefile --windowed "$SCRIPT" \
-  --name game_tool \
-  --add-data "app/images${PATH_SEPARATOR}app/images"
+  --name screen_capture
 
 # Done
 echo "✅ Build complete. Executable located in $DIST_FOLDER/"
