@@ -15,7 +15,8 @@ rm -rf "$BUILD_FOLDER" "$DIST_FOLDER" "$SPEC_FILE"
 echo "🚀 Building executable with PyInstaller..."
 pyinstaller --noconfirm --onefile --windowed "$SCRIPT" \
   --name game_tool \
-  --add-data "app/images${PATH_SEPARATOR}app/images"
+  --icon game_icon_129066.ico \
+  --add-data "data${PATH_SEPARATOR}data"
 
 # Done
 echo "✅ Build complete. Executable located in $DIST_FOLDER/"

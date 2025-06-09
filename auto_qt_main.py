@@ -1,8 +1,10 @@
+import os
+import shutil
 import sys
 
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, pyqtSlot, QMetaObject
+from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, pyqtSlot, QMetaObject, QSettings
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QHBoxLayout
@@ -14,6 +16,31 @@ from app.resource_util import resource_path
 from app.send_window_event import focus_window, simulate_click, simulate_mouse_move_around
 
 LOGGER = create_logger(name='MainWindow')
+
+def get_exe_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.abspath(".")
+
+def get_bundled_data_path():
+    if getattr(sys, 'frozen', False):
+        return os.path.join(sys._MEIPASS, 'data')
+    return os.path.join(get_exe_dir(), 'data')
+
+def ensure_data_dir_exists():
+    exe_dir = get_exe_dir()
+    target_data_dir = os.path.join(exe_dir, 'data')
+
+    if not os.path.exists(target_data_dir):
+        print("📁 First-time run: copying bundled data...")
+        bundled_data_dir = get_bundled_data_path()
+        shutil.copytree(bundled_data_dir, target_data_dir)
+        print(f"✅ Data directory created at: {target_data_dir}")
+    else:
+        print(f"📂 Data directory already exists at: {target_data_dir}")
+
+    return target_data_dir
+
 class DraggableButton(QPushButton):
     def mousePressEvent(self, event):
         self.parent().mousePressEvent(event)
@@ -37,13 +64,14 @@ class AutoMainWindow(QWidget):
         super().__init__()
         self.running = False
         self._drag_pos = None  # For dragging window
+        self.settings = QSettings("data/config.ini", QSettings.Format.IniFormat)
         self.init_ui()
         
         self.start_detect_worker()
 
     def start_detect_worker(self):
         self.thread = QThread()
-        self.detect_worker = DetectionWorker()
+        self.detect_worker = DetectionWorker(settings=self.settings)
         self.detect_worker.moveToThread(self.thread)
         self.detect_worker.solve_action_requested.connect(self.resolve_scenario)
         # Ensure setup runs inside the worker thread
@@ -145,8 +173,6 @@ class AutoMainWindow(QWidget):
         LOGGER.info("Closing window...")
         self.stop_detection_signal.emit()
 
-        # Call explicit cleanup
-        # QMetaObject.invokeMethod(self.detect_worker, "cleanup", Qt.ConnectionType.QueuedConnection)
         try:
             QMetaObject.invokeMethod(self.detect_worker, "cleanup", Qt.ConnectionType.BlockingQueuedConnection)
         except Exception as e:
@@ -203,6 +229,7 @@ class AutoMainWindow(QWidget):
 
 
 if __name__ == "__main__":
+    ensure_data_dir_exists()
     app = QApplication(sys.argv)
     window = AutoMainWindow()
     window.show()

@@ -14,7 +14,8 @@ rm -rf "$BUILD_FOLDER" "$DIST_FOLDER" "$SPEC_FILE"
 # Run PyInstaller
 echo "🚀 Building executable with PyInstaller..."
 pyinstaller --noconfirm --onefile --windowed "$SCRIPT" \
-  --name screen_capture
+  --name screen_capture \
+  --icon capture-icon.ico
 
 # Done
 echo "✅ Build complete. Executable located in $DIST_FOLDER/"

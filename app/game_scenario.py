@@ -7,16 +7,23 @@ from app.log_factory import create_logger
 
 LOGGER = create_logger()
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QSettings
 
 class GameScenario(QObject):
     DETECT_RETRY=3
     solve_action_requested = pyqtSignal(str, int, tuple)  # solve_action_type, window_handle_no, points tuple
 
-    def __init__(self):
+    def __init__(self, settings: QSettings):
         super().__init__()
         self.images = []
+        self._settings = settings
 
+    def _settings(self) -> QSettings:
+        return self._settings
+    
+    def parse_list_int(self, val: list) -> list[int]:
+        return [int(x.strip()) for x in val]
+    
     def detect_and_solve(self, game_window, screenshot):
         pass
 
@@ -37,14 +44,12 @@ class GameScenario(QObject):
         pass
 
 class StuckBuyingGameScenario(GameScenario):
-    lower_color_range = [19, 19, 0]
-    upper_color_range = [255, 255, 255]
-    def __init__(self):
-        super().__init__()
-        self.images = [
-            read_image_file('app/images/mumu/vlv-stuck-buying-med-shop_2_masked.png'),
-            read_image_file('app/images/mumu/vlv-stuck-buying-med-bag_2_masked.png')
-        ]
+    def __init__(self, settings):
+        super().__init__(settings=settings)
+        image_files = settings.value("Detection/ShopStuckimg", "data/img/shop/shop-1.png,data/img/shop/bag-1.png")
+        self.images = [read_image_file(f) for f in image_files]
+        self.lower_color_range = self.parse_list_int(settings.value("Color/ShopStuckLowerColorRange", [19,19,0]))
+        self.upper_color_range = self.parse_list_int(settings.value("Color/ShopStuckUpperColorRange", [255,255,255]))
         
     def detect_and_solve(self, game_window, screenshot):
         try:
@@ -90,26 +95,17 @@ class StuckBuyingGameScenario(GameScenario):
         self.solve_action_requested.emit('close_medicine_bag', game_window._hWnd, (start_x, start_y))
 
 class TownStuckGameScenario(GameScenario):
-    TOWN_STUCK_SECONDS = 120
-    COOLDOWN_SECONDS = 10  # prevent immediate re-match
     move_around_x_offset = 120
     move_around_y_offset = 120
-    lower_color_range = [38, 206, 0]
-    upper_color_range = [94, 255, 165]
     
-    def __init__(self):
-        super().__init__()
-        self.images = [
-            read_image_file('app/images/mumu/vlv-DuongChau-smallmap_1_masked.png'),
-            read_image_file('app/images/mumu/vlv-DuongChau-smallmap_2_masked.png'),
-            read_image_file('app/images/mumu/vlv-BienKinh-smallmap_1_masked.png'),
-            read_image_file('app/images/mumu/vlv-DaiLy-smallmap_1_masked.png'),
-            read_image_file('app/images/mumu/vlv-DaiLy-smallmap_2_masked.png'),
-            read_image_file('app/images/mumu/vlv-LamAn-smallmap_1_masked.png'),
-            read_image_file('app/images/mumu/vlv-PhuongTuong-smallmap_1_masked.png'),
-            read_image_file('app/images/mumu/vlv-ThanhDo-smallmap_1_masked.png'),
-            read_image_file('app/images/mumu/vlv-TuongDuong-smallmap_1_masked.png')
-        ]
+    def __init__(self, settings: QSettings):
+        super().__init__(settings=settings)
+        self.TOWN_STUCK_SECONDS = settings.value("Detection/TownStuckTimeout", 20, type=int)
+        self.COOLDOWN_SECONDS = settings.value("Detection/CooldownSeconds", 10, type=int) # prevent immediate re-match
+        image_files = settings.value("Detection/TownStuckimg", "data/img/town/DuongChau-sm1.png,data/img/town/DuongChau-sm2.png")
+        self.images = [read_image_file(f) for f in image_files]
+        self.lower_color_range = self.parse_list_int(settings.value("Color/TownStuckLowerColorRange", [38,206,0]))
+        self.upper_color_range = self.parse_list_int(settings.value("Color/TownStuckUpperColorRange", [94,255,165]))
         self.first_match_timestamp = {}
         self.last_solved_timestamp = {}
         

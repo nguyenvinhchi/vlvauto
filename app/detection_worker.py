@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QObject, QTimer, pyqtSlot, QThread, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, pyqtSlot, QThread, pyqtSignal, QSettings
 
 from app.detect_game_widget import get_window_screenshot
 from app.get_game_window import find_window
@@ -10,13 +10,14 @@ LOGGER = create_logger()
 class DetectionWorker(QObject):
     solve_action_requested = pyqtSignal(str, int, tuple)
 
-    def __init__(self):
+    def __init__(self, settings: QSettings):
         super().__init__()
-        self.WINDOW_TITLE_PATTERN = "JX"
+        self.settings=settings
+        self.WINDOW_TITLE_PATTERN = settings.value("Detection/GameWindowTitlePattern", "JX")
         self.DETECTION_MS = 30 * 1000  # 30 seconds
         self.timer = None  # Will be created after moving to thread
         self.game_windows = None
-        self.game_scenarios = [StuckBuyingGameScenario(), TownStuckGameScenario() ]
+        self.game_scenarios = [StuckBuyingGameScenario(settings), TownStuckGameScenario(settings) ]
         for scenario in self.game_scenarios:
             scenario.setParent(self)
             scenario.solve_action_requested.connect(self.solve_action_requested)
@@ -72,7 +73,10 @@ class DetectionWorker(QObject):
             
     def detect_window(self):
         self.game_windows = find_window(self.WINDOW_TITLE_PATTERN)
-        LOGGER.info(f"Detected {len(self.game_windows)} game windows")
+        if not self.game_windows:
+            LOGGER.info("No open game windows")
+        else:
+            LOGGER.info(f"Detected {len(self.game_windows)} game windows")
 
     def capture_window(self, game_window):
         try:
