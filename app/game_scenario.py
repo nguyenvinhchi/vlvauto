@@ -46,21 +46,25 @@ class GameScenario(QObject):
 class StuckBuyingGameScenario(GameScenario):
     def __init__(self, settings):
         super().__init__(settings=settings)
-        image_files = settings.value("Detection/ShopStuckimg", "data/img/shop/shop-1.png,data/img/shop/bag-1.png")
-        self.images = [read_image_file(f) for f in image_files]
+        self.buy_stuck_shop_img = read_image_file(settings.value("Detection/BuyStuckShopImage", "data/img/shop/shop-1.png"))
+        self.buy_stuck_bag_img = read_image_file(settings.value("Detection/BuyStuckBagImage", "data/img/shop/bag-1.png"))
         self.lower_color_range = self.parse_list_int(settings.value("Color/ShopStuckLowerColorRange", [19,19,0]))
         self.upper_color_range = self.parse_list_int(settings.value("Color/ShopStuckUpperColorRange", [255,255,255]))
+        self.SHOP_BUTTON_THRESHOLD = settings.value("Detection/ShopButtonThreshold", 0.7, type=float)
         
     def detect_and_solve(self, game_window, screenshot):
         try:
-            match1 = self._detect_medicine_shop(self.images[0], screenshot)
+            match1 = self._detect_medicine_shop(self.buy_stuck_shop_img, screenshot)
             if match1:
-                LOGGER.info(f'Found medicine shop stuck - {game_window.title}')
+                LOGGER.info(f'Found buy stuck - shop - {game_window.title}')
                 self._close_medicine_shop(game_window, match1)
                 
-            match2 = self._detect_medicine_bag(self.images[1], screenshot)
+            match2 = self._detect_medicine_bag(self.buy_stuck_bag_img, screenshot)
             if match2:
+                LOGGER.info(f'Found buy stuck bag - {game_window.title}')
                 self._close_medicine_bag(game_window, match2)
+            if match1 or match2:
+                return True
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve medicine stuck: {e}')
 
@@ -75,7 +79,7 @@ class StuckBuyingGameScenario(GameScenario):
         return self.detect(pattern_img, screenshot,
                            lower_color_range=self.lower_color_range,
                            upper_color_range=self.upper_color_range,
-                           threshold=0.6
+                           threshold=self.SHOP_BUTTON_THRESHOLD
                            )
     
     def _close_medicine_shop(self, game_window, match):
@@ -91,7 +95,7 @@ class StuckBuyingGameScenario(GameScenario):
         screen_x = game_window.left + x
         screen_y = game_window.top + y
         start_x, start_y = screen_x + 3*w//4, screen_y + h//2
-        LOGGER.info(f"🎯 Found med bag stuck at ({screen_x}, {screen_y}), size: {w}x{h} - {game_window.title}")
+        LOGGER.info(f"🎯 Found med bag stuck at ({screen_x}, {screen_y}), size: {w}x{h} - '{game_window.title}'")
         self.solve_action_requested.emit('close_medicine_bag', game_window._hWnd, (start_x, start_y))
 
 class TownStuckGameScenario(GameScenario):
@@ -102,6 +106,7 @@ class TownStuckGameScenario(GameScenario):
         super().__init__(settings=settings)
         self.TOWN_STUCK_SECONDS = settings.value("Detection/TownStuckTimeout", 20, type=int)
         self.COOLDOWN_SECONDS = settings.value("Detection/CooldownSeconds", 10, type=int) # prevent immediate re-match
+        self.TOWN_NAME_THRESHOLD = settings.value("Detection/TownNameGreenThreshold", 0.7, type=float)
         image_files = settings.value("Detection/TownStuckimg", "data/img/town/DuongChau-sm1.png,data/img/town/DuongChau-sm2.png")
         self.images = [read_image_file(f) for f in image_files]
         self.lower_color_range = self.parse_list_int(settings.value("Color/TownStuckLowerColorRange", [38,206,0]))
@@ -129,6 +134,7 @@ class TownStuckGameScenario(GameScenario):
                     self._solve_town_stuck(game_window)
                     self.first_match_timestamp[game_window.title] = 0
                     self.last_solved_timestamp[game_window.title] = now
+                    return True
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve town stuck: {e}')
 
@@ -136,7 +142,7 @@ class TownStuckGameScenario(GameScenario):
         return detect_pattern(pattern_img, screenshot_img,
                               lower_color_range=self.lower_color_range,
                               upper_color_range=self.upper_color_range,
-                              threshold=0.6
+                              threshold=self.TOWN_NAME_THRESHOLD
                               )
 
     def _get_stuck_elaped_seconds(self, game_window, screenshot):

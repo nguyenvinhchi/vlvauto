@@ -3,12 +3,17 @@ import win32con
 import win32gui
 import time
 
+from app.log_factory import create_logger
+
+LOGGER = create_logger(name='MainWindow')
+
 def focus_window(hwnd):
     try:
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)  # Restore if minimized
         win32gui.SetForegroundWindow(hwnd)              # Bring to front
-        print("✅ Window focused.")
-        time.sleep(0.1)  # slight delay to let it register
+        window_title = win32gui.GetWindowText(hwnd)
+        LOGGER.info(f"✅ Window focused: '{window_title}")
+        time.sleep(0.2)  # slight delay to let it register
     except Exception as e:
         print(f"❌ Could not focus window: {e}")
 
