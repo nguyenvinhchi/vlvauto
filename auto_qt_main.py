@@ -1,19 +1,34 @@
 import os
 import shutil
 import sys
+import win32api
 
-from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
-from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, pyqtSlot, QMetaObject, QSettings
+from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QPushButton
+from PyQt6.QtGui import QIcon, QAction, QCursor
+from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, pyqtSlot, QMetaObject, QSettings, QDateTime
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QHBoxLayout
 )
 
 from app.detection_worker import DetectionWorker
+from app.flow_layout import FlowLayout
 from app.log_factory import create_logger
+from app.pattern.create_pattern_dialog import PatternCreatorDialog
 from app.resource_util import resource_path
 from app.send_window_event import focus_window, simulate_click, simulate_mouse_move_around
+
+# import ctypes
+# try:
+#     ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PROCESS_SYSTEM_DPI_AWARE
+# except Exception:
+#     pass
+
+# Disable Qt High DPI scaling
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
+os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
+os.environ["QT_SCALE_FACTOR"] = "1"
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_Use96Dpi)
 
 LOGGER = create_logger(name='MainWindow')
 
@@ -53,8 +68,10 @@ class DraggableButton(QPushButton):
         self.parent().mouseReleaseEvent(event)
         super().mouseReleaseEvent(event)  # finalize button click
 
-WINDOW_W = 80
-WINDOW_H = 50
+WINDOW_W = 120
+WINDOW_H = 70
+START_POS_X = 10
+START_POS_Y = 10
 
 class AutoMainWindow(QWidget):
     start_detection_signal = pyqtSignal()
@@ -64,10 +81,85 @@ class AutoMainWindow(QWidget):
         super().__init__()
         self.running = False
         self._drag_pos = None  # For dragging window
+
         self.settings = QSettings("data/config.ini", QSettings.Format.IniFormat)
+        self.INACTIVITY_DURATION = self.settings.value("Detection/InactivityDurationAutoStartSeconds", 60, type=int)
+        self._last_mouse_pos = win32api.GetCursorPos()
+        self._last_activity = QDateTime.currentDateTime() # app start is the user activity
+        self.inactivity_timer = QTimer(self)
+        self.inactivity_timer.timeout.connect(self.check_inactivity)
+        self.inactivity_timer.start(10000)
+
         self.init_ui()
         
         self.start_detect_worker()
+
+    def init_ui(self):
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedSize(WINDOW_W, WINDOW_H)
+        self.move(START_POS_X, START_POS_Y)
+
+        central_widget = QWidget(self)
+        central_widget.setObjectName("central_widget")
+        central_widget.setStyleSheet("#central_widget { background-color: transparent; }")
+        # layout = QHBoxLayout(self)
+        layout = FlowLayout(central_widget)
+
+        self.move_button = DraggableButton("🖱️", self)
+        self.move_button.setToolTip("Drag to move the tool window")
+        self.move_button.pressed.connect(self.on_start_drag)
+        layout.addWidget(self.move_button)
+
+
+        self.start_button = QPushButton(" ▶️ ", self)
+        self.start_button.clicked.connect(self.on_start)
+        layout.addWidget(self.start_button)
+
+        self.pattern_button = QPushButton("✏️", self)
+        self.pattern_button.setToolTip('create image pattern for detection')
+        self.pattern_button.clicked.connect(self.on_show_pattern_creator_dialog)
+        layout.addWidget(self.pattern_button)
+
+        self.exit_button = QPushButton("❌", self)
+        self.exit_button.clicked.connect(self.close)
+        layout.addWidget(self.exit_button)
+
+        main_layout = QHBoxLayout(self)
+        main_layout.addWidget(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.apply_dark_theme()
+        self.setup_tray_icon()
+        self.setWindowTitle("VLV Auto")
+        self.setMouseTracking(True)
+
+        central_widget.mousePressEvent = self.child_mousePressEvent
+        central_widget.mouseMoveEvent = self.child_mouseMoveEvent
+        central_widget.mouseReleaseEvent = self.child_mouseReleaseEvent
+
+    def check_inactivity(self):
+        current_pos = win32api.GetCursorPos()
+
+        if current_pos != self._last_mouse_pos:
+            self._last_mouse_pos = current_pos
+            self._last_activity = QDateTime.currentDateTime()
+            return
+        if self.running or self._last_activity is None:
+            return
+        
+        elapsed = self._last_activity.secsTo(QDateTime.currentDateTime())
+        
+        if elapsed >= self.INACTIVITY_DURATION:
+            LOGGER.info(f"Auto-start due to {self.INACTIVITY_DURATION} inactivity.")
+            self._last_activity = None  # reset to prevent repeated triggers
+            self.running = True
+            self.start_auto()
+
 
     def start_detect_worker(self):
         self.thread = QThread()
@@ -96,54 +188,56 @@ class AutoMainWindow(QWidget):
         elif resolve_action == 'move_around_abit':
             x, y = points
             simulate_mouse_move_around(x, y)
+        elif resolve_action == 'auto_login':
+            self.do_login(points)
+        elif resolve_action == 'close_login_warning':
+            self.close_login_warning_dialog(points)
+        else:
+            LOGGER.info(f"{resolve_action} is not supported yet")
 
-    def init_ui(self):
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.Tool
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(WINDOW_W, WINDOW_H)
+    def do_login(self, points: tuple):
+        self._click_login_button(points)
+    
+    def close_login_warning_dialog(self, points: tuple):
+        # 4rd point is confirm button which will close the warning
+        simulate_click(*points[3])
 
-        central_widget = QWidget(self)
-        central_widget.setObjectName("central_widget")
-        central_widget.setStyleSheet("#central_widget { background-color: transparent; }")
-        layout = QHBoxLayout(self)
+    def _click_login_button(self, points: tuple, delay=7000):
+        # Step 1: Click Login button
+        simulate_click(*points[0])
+        LOGGER.info("Clicked login button")
+        # Step 2: After 3 seconds, click server icon
+        QTimer.singleShot(delay, lambda: self._click_server_icon(points))
 
-        self.start_button = DraggableButton(" ▶️ ", self)
-        self.start_button.clicked.connect(self.on_start)
-        layout.addWidget(self.start_button)
+    def _click_server_icon(self, points: tuple, delay=5000):
+        simulate_click(*points[1])
+        LOGGER.info("Clicked server icon")
 
-        self.exit_button = DraggableButton("❌", self)
-        self.exit_button.clicked.connect(self.close)
-        layout.addWidget(self.exit_button)
+        # Step 3: After another 3 seconds, double-click avatar
+        QTimer.singleShot(delay, lambda: self._double_click_avatar(points))
 
-        main_layout = QHBoxLayout(self)
-        main_layout.addWidget(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.apply_dark_theme()
-        self.setup_tray_icon()
-        self.setWindowTitle("VLV Auto")
-        self.setMouseTracking(True)
-
-        central_widget.mousePressEvent = self.child_mousePressEvent
-        central_widget.mouseMoveEvent = self.child_mouseMoveEvent
-        central_widget.mouseReleaseEvent = self.child_mouseReleaseEvent
+    def _double_click_avatar(self, points: tuple):
+        simulate_click(*points[2], action='double_click')
+        LOGGER.info("Double-clicked character avatar")
 
     def on_start(self):
         LOGGER.info("Start button clicked")
         self.running = not self.running
 
         if self.running:
-            LOGGER.info("start auto detect")
-            self.start_detection_signal.emit()
-            self.start_button.setText("⏸️")
+            self.start_auto()
         else:
             LOGGER.info("pause auto detect")
             self.stop_detection_signal.emit();
             self.start_button.setText("▶️")
+
+    def start_auto(self):
+        LOGGER.info("start auto detect")
+        self.start_detection_signal.emit()
+        self.start_button.setText("⏸️")
+
+    def on_start_drag(self):
+        self._drag_pos = QCursor.pos() - self.frameGeometry().topLeft()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -185,6 +279,9 @@ class AutoMainWindow(QWidget):
         QApplication.quit()
         LOGGER.info("App exit")
 
+    def on_show_pattern_creator_dialog(self):
+        dlg = PatternCreatorDialog(self)
+        dlg.exec()
 
     def setup_tray_icon(self):
         tray_icon = QSystemTrayIcon(QIcon(resource_path("app/images/vlvauto-icon.png")))

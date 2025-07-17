@@ -1,13 +1,15 @@
 
 
+import ast
 import time
+import win32gui
 from app.detect_game_widget import detect_pattern, read_image_file
 from app.log_factory import create_logger
 
 
 LOGGER = create_logger()
 
-from PyQt6.QtCore import QObject, pyqtSignal, QSettings
+from PyQt6.QtCore import QObject, pyqtSignal, QSettings, QDateTime
 
 class GameScenario(QObject):
     DETECT_RETRY=3
@@ -169,4 +171,75 @@ class TownStuckGameScenario(GameScenario):
         start_y = game_window.bottom - self.move_around_y_offset
         self.solve_action_requested.emit('move_around_abit', game_window._hWnd, (start_x, start_y))
 
+
+class LoginScenarioV2(GameScenario):
+    def __init__(self, settings: QSettings):
+        super().__init__(settings=settings)
+        self.lower_color_range = self.parse_list_int(settings.value("Color/LoginLowerColorRange", [29, 66, 170]))
+        self.upper_color_range = self.parse_list_int(settings.value("Color/LoginUpperColorRange", [179, 169, 215]))
+
+        self.login_check_confirm_duration = settings.value('Detection/LoginCheckConfirmDurationSeconds', 60, type=int)
+        self.login_window_img_path = settings.value('Detection/LoginWindowImgPath', 'data/img/login/login_window1.png')
+        
+        self.lower_color_range2 = self.parse_list_int(settings.value("Color/LoginLowerColorRange2", [0, 0, 0]))
+        self.upper_color_range2 = self.parse_list_int(settings.value("Color/LoginUpperColorRange2", [179, 169, 215]))
+        self.login_window_img_path2 = settings.value('Detection/LoginWindowImgPath2', 'data/img/login/login_window2.png')
+
+        self.LOGIN_THRESHOLD = settings.value("Detection/LoginThreshold", 0.7, type=float)
+        points = settings.value('Detection/LoginPoints', type=str)
+        self.login_points = ast.literal_eval(points)
+        self.images = [read_image_file(self.login_window_img_path), read_image_file(self.login_window_img_path2)]
+   
+        self._last_seen = None
+
+    
+    def detect_and_solve(self, game_window, screenshot):
+        try:
+            pattern_img = self.images[0]
+            if self.detect_login_window(pattern_img, screenshot):
+                
+                LOGGER.info(f"Found login window")
+                if self._last_seen is None:
+                    self._last_seen = QDateTime.currentDateTime()
+                else:
+                    duration = self._last_seen.secsTo(QDateTime.currentDateTime())
+                    if duration >= self.login_check_confirm_duration:
+                        self._last_seen = None
+                        self.login(game_window)
+
+            pattern_img2 = self.images[1]
+            if self.detect_login_window2(pattern_img2, screenshot):
+                LOGGER.info(f"Found login window - Tai khoang dang dang nhap")
+                self.close_login_warning(game_window)
+        
+        except Exception as e:
+            LOGGER.error(f'An error occured during  detect & solve login window: {e}')
+
+    def detect_login_window(self, pattern_img, screenshot_img) -> bool:
+        
+        return detect_pattern(pattern_img, screenshot_img,
+                              lower_color_range=self.lower_color_range,
+                              upper_color_range=self.upper_color_range,
+                              threshold=self.LOGIN_THRESHOLD
+                              )
+
+    def detect_login_window2(self, pattern_img, screenshot_img) -> bool:
+        
+        return detect_pattern(pattern_img, screenshot_img,
+                              lower_color_range=self.lower_color_range2,
+                              upper_color_range=self.upper_color_range2,
+                              threshold=self.LOGIN_THRESHOLD
+                              )
+
+    def login(self, game_window):
+        LOGGER.info(f'===Auto login {game_window.title}')
+        left, top, right, bottom = win32gui.GetWindowRect(game_window._hWnd)
+        points = tuple(((left + p[0], top + p[1]) for p in self.login_points))
+        self.solve_action_requested.emit('auto_login', game_window._hWnd, points)
+    
+    def close_login_warning(self, game_window):
+        LOGGER.info(f'===Closing warning login {game_window.title}')
+        left, top, right, bottom = win32gui.GetWindowRect(game_window._hWnd)
+        points = tuple(((left + p[0], top + p[1]) for p in self.login_points))
+        self.solve_action_requested.emit('close_login_warning', game_window._hWnd, points)
 

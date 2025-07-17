@@ -8,3 +8,4 @@ mss==9.0.1
 pywin32
 Pillow
 PyQt6>=6.5
+pytesseract==0.3.13

@@ -10,6 +10,13 @@ from PyQt6.QtGui import QPainter, QPen, QGuiApplication, QColor, QPixmap
 from imageutil.image_transform import TransformColorDialog
 from imageutil.screen_capture_overlay import ScreenCaptureOverlay
 
+# Disable Qt High DPI scaling
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
+os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
+os.environ["QT_SCALE_FACTOR"] = "1"
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_Use96Dpi)
+
+
 class ScreenCaptureWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -27,6 +34,8 @@ class ScreenCaptureWindow(QWidget):
         
         self.transform_lower_color = [38, 206, 0]
         self.transform_upper_color = [94, 255, 165]
+        # self.transform_lower_color = [0, 0, 0]
+        # self.transform_upper_color = [179, 169, 215]
 
         self.init_ui()
 
@@ -103,16 +112,9 @@ class ScreenCaptureWindow(QWidget):
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             # Save updated HSV range if needed
-            self.lower = dialog.lower
+            self.transform_lower_color = dialog.lower
             self.transform_upper_color = dialog.upper
-            QMessageBox.information(self, "Saved", "Filtered image saved to tmp/filtered.png")
-
-
-    def on_save_image(self):
-        # Step 1: Let user choose the save directory
-        folder_path = QFileDialog.getExistingDirectory(self, "Select Folder to Save Screenshot")
-        if not folder_path:
-            return  # User canceled
+            QMessageBox.information(self, "Saved", f"Filtered image saved to tmp/filtered.png, lower_color={self.transform_lower_color} , upper_color={self.transform_upper_color}")
     
 
 if __name__ == "__main__":

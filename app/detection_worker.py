@@ -5,7 +5,7 @@ from PIL import Image
 from app.detect_game_widget import get_window_screenshot
 from app.get_game_window import find_window
 from app.log_factory import create_logger
-from app.game_scenario import StuckBuyingGameScenario, TownStuckGameScenario
+from app.game_scenario import LoginScenarioV2, StuckBuyingGameScenario, TownStuckGameScenario
 
 LOGGER = create_logger()
 
@@ -20,10 +20,14 @@ class DetectionWorker(QObject):
         self.CHECK_INTERVAL_MS = CHECK_INTERVAL * 1000  # 30 seconds
         self.timer = None  # Will be created after moving to thread
         self.game_windows = None
-        self.game_scenarios = [StuckBuyingGameScenario(settings), TownStuckGameScenario(settings) ]
+        self.game_scenarios = [StuckBuyingGameScenario(settings), 
+                               TownStuckGameScenario(settings),
+                               LoginScenarioV2(settings)
+                               ]
         for scenario in self.game_scenarios:
             scenario.setParent(self)
             scenario.solve_action_requested.connect(self.solve_action_requested)
+        
         
     @pyqtSlot()
     def setup(self):
@@ -31,7 +35,6 @@ class DetectionWorker(QObject):
         self.timer.setInterval(self.CHECK_INTERVAL_MS)
         self.timer.timeout.connect(self.run_detection)
         LOGGER.info("DetectionWorker setup complete")
-        LOGGER.info(f"Timer thread: {QThread.currentThread()}, Worker thread: {self.thread()}")
 
     @pyqtSlot()
     def start(self):
@@ -71,7 +74,7 @@ class DetectionWorker(QObject):
                 screenshot = self.capture_window(game_window)
                 for scenario in self.game_scenarios:
                     r = scenario.detect_and_solve(game_window, screenshot)
-                    if r is True:
+                    if True or r is True:
                         self.save_screenshot(game_window, screenshot)
         except Exception as e:
             LOGGER.error(f"Detection error: {e}")

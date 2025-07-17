@@ -1,3 +1,4 @@
+import pyautogui
 import win32api
 import win32con
 import win32gui
@@ -12,13 +13,12 @@ def focus_window(hwnd):
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)  # Restore if minimized
         win32gui.SetForegroundWindow(hwnd)              # Bring to front
         window_title = win32gui.GetWindowText(hwnd)
-        LOGGER.info(f"✅ Window focused: '{window_title}")
+        LOGGER.debug(f"✅ Window focused: '{window_title}")
         time.sleep(0.2)  # slight delay to let it register
     except Exception as e:
-        print(f"❌ Could not focus window: {e}")
+        LOGGER.info(f"❌ Could not focus window: {e}")
 
-
-def simulate_click(x, y):
+def simulate_click(x, y, action='click'):
     # Move cursor (optional, for debug)
     win32api.SetCursorPos((x, y))
 
@@ -27,7 +27,14 @@ def simulate_click(x, y):
     time.sleep(0.01)  # slight delay
     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
 
-    # print(f"🖱️ Simulated click at: ({x}, {y})")
+    if action == 'click':
+        print(f"🖱️ Simulated click at: ({x}, {y})")
+    elif action == 'double_click':
+        # Send mouse down and up at screen position
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
+        time.sleep(0.01)  # slight delay
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
+        print(f"🖱️ Simulated double-click at: ({x}, {y})")
 
 def simulate_mouse_drag(start_x, start_y, direction='up', distance=40):
     # Move cursor to starting position
@@ -58,10 +65,13 @@ def simulate_mouse_drag(start_x, start_y, direction='up', distance=40):
 
     # print(f"🖱️ Drag simulated {direction} from ({start_x}, {start_y})")
 
-
 def simulate_mouse_move_around(start_x, start_y):
     simulate_mouse_drag(start_x, start_y, direction='up')
     simulate_mouse_drag(start_x, start_y, direction='down')
     simulate_mouse_drag(start_x, start_y, direction='right')
     simulate_mouse_drag(start_x, start_y, direction='left')
 
+def simulate_tab():
+    pyautogui.keyDown('ctrl')
+    pyautogui.press('tab')
+    pyautogui.keyUp('ctrl')

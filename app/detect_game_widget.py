@@ -2,8 +2,10 @@ import os
 import cv2
 import numpy as np
 import mss
+import win32gui
 
 from app.resource_util import resource_path
+from app.send_window_event import focus_window
 
 def print_image_info(name, img):
     if img is None:
@@ -66,11 +68,26 @@ def write_image_for_human_check(img_path, img, append_name = 'masked'):
     return out_path
 
 def get_window_screenshot(window):
+    # focus window before capture screen
+    focus_window(window._hWnd)
     region = {
         "top": window.top,
         "left": window.left,
         "width": window.width,
         "height": window.height
+    }
+    return get_screenshot(region)
+
+def get_window_screenshot_by_handle(hwnd):
+    # focus window before capture screen
+    focus_window(hwnd)
+    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+    # top = top - 30
+    region = {
+        "top": top,
+        "left": left,
+        "width": right - left,
+        "height": bottom - top
     }
     return get_screenshot(region)
 
