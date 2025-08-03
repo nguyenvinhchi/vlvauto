@@ -6,7 +6,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 import os
 
-def create_logger(name="auto-tool", log_file="log/auto-tool.log", level=logging.INFO):
+def create_logger(name="auto-tool", log_file="log/auto-tool.log", level=logging.DEBUG):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -21,7 +21,8 @@ def create_logger(name="auto-tool", log_file="log/auto-tool.log", level=logging.
 
     stream_handler = logging.StreamHandler(stream)
     stream_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s')
+
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 

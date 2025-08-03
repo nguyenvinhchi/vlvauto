@@ -18,11 +18,6 @@ from app.pattern.create_pattern_dialog import PatternCreatorDialog
 from app.resource_util import resource_path
 from app.send_window_event import focus_window, simulate_click, simulate_mouse_move_around
 
-# import ctypes
-# try:
-#     ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PROCESS_SYSTEM_DPI_AWARE
-# except Exception:
-#     pass
 
 # Disable Qt High DPI scaling
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"

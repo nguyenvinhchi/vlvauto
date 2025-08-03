@@ -2,19 +2,21 @@ import os
 from PyQt6.QtWidgets import (
     QDialog, QLabel, QPushButton, QVBoxLayout,
     QLineEdit, QListWidget, QTextEdit, QMessageBox,
-    QWidget, QFileDialog
+    QWidget, QFileDialog, QApplication
 )
+
 
 import pygetwindow as gw
 import pyautogui
 from datetime import datetime
-from PyQt6.QtGui import QGuiApplication
 
 from app.flow_layout import FlowLayout
 from app.pattern.image_select_dialog import ImageSelectDialog
+from app.v2.window_util import WindowUtil
 
 TMP_DIR = "data/tmp"
 os.makedirs(TMP_DIR, exist_ok=True)
+
 
 class PatternCreatorDialog(QDialog):
     def __init__(self, parent=None):
@@ -83,36 +85,17 @@ class PatternCreatorDialog(QDialog):
             self.capture_button.setEnabled(True)
 
     def capture_window_image(self):
-        win = gw.getWindowsWithTitle(self.selected_window)[0]
+        windows = WindowUtil.find_game_windows(self.selected_window)
+        if not windows:
+            return
+        win = windows[0]
         win.activate()
         pyautogui.sleep(1)  # wait for window to activate
 
-        # left, top, width, height = win.left, win.top, win.width, win.height
-        # print(f'window capturing size: {width}x{height}')
-        # img = pyautogui.screenshot(region=(left, top, width, height))
-
-        # # Adjust for custom DPI (e.g. 108)
-        # actual_dpi = 108  # <-- set this based on your observation
-        # dpi_scale = actual_dpi / 96
-
-        # if dpi_scale != 1.0:
-        #     new_size = (int(width / dpi_scale), int(height / dpi_scale))
-        #     img = img.resize(new_size, Image.Resampling.LANCZOS)
-
-        hwnd = win._hWnd  # HWND handle of the window
-        screen = QGuiApplication.primaryScreen()
-        if not screen:
-            QMessageBox.critical(self, "Error", "No screen found.")
-            return
-
-        qt_pixmap = screen.grabWindow(hwnd)  # This grabs just the window region
-        if qt_pixmap.isNull():
-            QMessageBox.critical(self, "Error", "Failed to capture window image.")
-            return
+        screenshot = WindowUtil.screen_shot(win)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.image_path = os.path.join(TMP_DIR, f"{timestamp}.png")
-        print(qt_pixmap.size())
-        qt_pixmap.save(self.image_path, "PNG")
+        self.image_path = os.path.join(TMP_DIR, f"{self.selected_window}-{timestamp}.png")
+        screenshot.save(self.image_path, format="PNG")
 
         self.select_image_button.setEnabled(True)
         QMessageBox.information(self, "Capture Done", f"Window image saved to {self.image_path}")
@@ -137,14 +120,10 @@ class PatternCreatorDialog(QDialog):
             return
 
         def on_point_selected(pos, color):
-            self.pattern_points.append((pos, color))
-            self.point_output.append(f"{pos} RGB{color}")
+            x, y = pos
+            r, g, b = color
+            self.pattern_points.append((*pos, *color))
+            self.point_output.append(f"{x,y,r,g,b}")
 
         dialog = ImageSelectDialog(parent=self, image_path=self.image_path, on_point_selected=on_point_selected)
         dialog.exec()
-
-    # def closeEvent(self, event):
-    #     event.accept()
-    #     self.deleteLater()  # optional cleanup
-    #     print('Closing creat pattern dialog')
-

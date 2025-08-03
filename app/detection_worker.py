@@ -74,7 +74,7 @@ class DetectionWorker(QObject):
                 screenshot = self.capture_window(game_window)
                 for scenario in self.game_scenarios:
                     r = scenario.detect_and_solve(game_window, screenshot)
-                    if True or r is True:
+                    if r is not None:
                         self.save_screenshot(game_window, screenshot)
         except Exception as e:
             LOGGER.error(f"Detection error: {e}")

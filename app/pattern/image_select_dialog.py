@@ -3,14 +3,21 @@
 import os
 from PyQt6.QtWidgets import (
     QDialog, QLabel, QVBoxLayout,
-    QMessageBox, QSizePolicy, QScrollArea
+    QMessageBox, QSizePolicy, QScrollArea, QApplication
 )
 from PyQt6.QtGui import QPixmap, QMouseEvent
 from PyQt6.QtCore import Qt
 import cv2
+from PIL import Image
 
 TMP_DIR = "data/tmp"
 os.makedirs(TMP_DIR, exist_ok=True)
+
+# Disable Qt High DPI scaling
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
+os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
+os.environ["QT_SCALE_FACTOR"] = "1"
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_Use96Dpi)
 
 class ImageSelectDialog(QDialog):
     def __init__(self, parent, image_path, on_point_selected):
@@ -50,7 +57,15 @@ class ImageSelectDialog(QDialog):
         if event.button() == Qt.MouseButton.LeftButton:
             pos = event.position().toPoint()
             x, y = pos.x(), pos.y()
-            img = cv2.imread(self.image_path)
-            b, g, r = img[y, x][:3]
+
+            # img = cv2.imread(self.image_path)
+            # b, g, r = img[y, x][:3]
+
+            # Load the image with PIL
+            img = Image.open(self.image_path).convert("RGB")  # Ensure RGB mode
+
+            # Get the pixel color at (x, y)
+            r, g, b = img.getpixel((x, y))
+
             self.on_point_selected((x, y), (r, g, b))
             QMessageBox.information(self, "Point Added", f"Point at ({x}, {y}) with color RGB({r},{g},{b}) added.")
