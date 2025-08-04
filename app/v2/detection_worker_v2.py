@@ -1,10 +1,11 @@
 import os
+import time
 from typing import List
 from PyQt6.QtCore import QObject, QTimer, pyqtSlot, QSettings, pyqtSignal
 
 from app.get_game_window import find_window
 from app.log_factory import create_logger
-from app.game_scenario import LoginSelectCharacterScenario, LoginSelectServerScenario, AccountLoginedWarningScenario, StuckBuyingGameScenario, TownStuckGameScenario, UserPassLoginScenario
+from app.game_scenario import LoginSelectCharacterScenario, LoginSelectServerScenario, AccountLoginedWarningScenario, ServerConnectWarnScenario, StuckBuyingGameScenario, TownStuckGameScenario, UserPassLoginScenario
 from app.v2.game_tab_iterate import GameTabIterate
 from app.v2.window_util import WindowUtil
 
@@ -31,14 +32,9 @@ class DetectionWorkerV2(GameTabIterate, QObject):
             AccountLoginedWarningScenario(settings, self),
             LoginSelectServerScenario(settings, self),
             LoginSelectCharacterScenario(settings, self),
+            ServerConnectWarnScenario(settings, self),
         ]
-        # self.game_scenarios = [StuckBuyingGameScenario(settings), 
-        #                        TownStuckGameScenario(settings),
-        #                        LoginScenarioV2(settings),
-        #                        LoginSelectServerScenario(settings),
-        #                        LoginSelectCharacterScenario(settings),
-        #                        LoginServerConnectWarningScenario(settings)
-        #                        ]
+        
         for scenario in self.game_scenarios:
             scenario.setParent(self)
     
@@ -76,6 +72,7 @@ class DetectionWorkerV2(GameTabIterate, QObject):
         self.stop()
 
     def run_detection(self):
+        time.sleep(0.2)
         if not self.running or not self.game_windows:
             return
 
@@ -87,6 +84,9 @@ class DetectionWorkerV2(GameTabIterate, QObject):
 
         except Exception as e:
             LOGGER.error(f"Detection error: {e}", exc_info=True)
+
+    def is_running(self):
+        return self.running
             
     def save_screenshot(self, screenshot, game_tab_id="0"):
         folder = "data/screenshot"

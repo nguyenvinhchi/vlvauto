@@ -33,6 +33,9 @@ class GameTabIterate:
         for scenario in self.get_game_scenarios():
             scenario.detect_and_solve(game_window, screenshot, game_tab_id)
 
+    def is_running(self):
+        pass # implement in worker
+
     def iterate_game_tab(self, game_window):
         
         hwnd = WindowUtil.get_hwnd(game_window)
@@ -54,6 +57,8 @@ class GameTabIterate:
 
         # Move from main tab to the first game tab (or back to main if no game tabs)
         for _ in range(max_game_tab_processing_iterations):
+            if not self.is_running():
+                return
             time.sleep(3)
             WindowUtil.send_trl_tab(game_window)
             time.sleep(3) # Short delay for tab switch
@@ -75,6 +80,8 @@ class GameTabIterate:
     def find_main_tab(self, game_window, max_initial_tab_attempts):
         main_tab_found = False
         for attempt in range(max_initial_tab_attempts):
+            if not self.is_running():
+                return
             if self.is_main_window(game_window):
                 main_tab_found = True
                 print(f"Worker: Main MuMu tab found after {attempt + 1} attempts.")

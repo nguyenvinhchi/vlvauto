@@ -34,6 +34,8 @@ class GameScenario(QObject):
     ACOUNT_LOGINED_WARNING = "account_logined_warning"
     SELECT_SERVER_TO_LOGIN = "select_server_to_login"
     SELECT_CHARACTER_TO_LOGIN = "select_character_to_login"
+    CRASH_DIALOG = "crash_dialog"
+    SERVER_CONNECT="server_connect_warn"
 
     def __init__(self, settings: QSettings, worker_parent):
         super().__init__()
@@ -91,6 +93,9 @@ class GameScenario(QObject):
 
         elif resolve_action == self.SELECT_CHARACTER_TO_LOGIN:
             Resolver.do_select_character(screen_points)
+
+        elif resolve_action == self.SERVER_CONNECT:
+            Resolver.do_single_click(screen_points)
         else:
             LOGGER.info(f"{resolve_action} is not supported yet")
 
@@ -299,4 +304,40 @@ class LoginSelectCharacterScenario(GameScenario):
         
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve login window: {e}')
+
+class CrashDialogScenario(GameScenario):
+    def __init__(self, settings: QSettings, parent_worker):
+        super().__init__(settings, parent_worker)
+        points = settings.value('Detection/CrashDialogPoints', type=str)
+        self.crash_dialog_points = ast.literal_eval(points)
+        self.close_points = ((self.crash_dialog_points[-1][0:2]),)
+        # print(self.close_warn_points)
+    
+    def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
+        try:
+            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.crash_dialog_points, 
+                                             debug_name="CrashDialog"):
+                LOGGER.info(f"Found Crash Dialog: {game_tab_id}")
+                self.resolve_scenario(self.CRASH_DIALOG, game_window, self.close_points)
+        
+        except Exception as e:
+            LOGGER.error(f'An error occured during  detect & solve login window: {e}', exc_info=True)
+
+class ServerConnectWarnScenario(GameScenario):
+    def __init__(self, settings: QSettings, parent_worker):
+        super().__init__(settings, parent_worker)
+        points = settings.value('Detection/GameLoginServerConnectWarnPoints', type=str)
+        self.server_connect_dialog_points = ast.literal_eval(points)
+        self.close_points = ((self.server_connect_dialog_points[-1][0:2]),)
+        # print(self.close_warn_points)
+    
+    def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
+        try:
+            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.server_connect_dialog_points, 
+                                             debug_name="ServerConnect"):
+                LOGGER.info(f"Found Server connect warn: {game_tab_id}")
+                self.resolve_scenario(self.SERVER_CONNECT, game_window, self.close_points)
+        
+        except Exception as e:
+            LOGGER.error(f'An error occured during  detect & solve login window: {e}', exc_info=True)
 
