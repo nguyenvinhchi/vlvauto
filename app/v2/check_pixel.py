@@ -6,9 +6,13 @@ class PixelUtil:
             Generic method to check a pixel pattern against a given window.
             Returns a tuple: (bool is_match, list overlay_points).
             """
-
+            
+            title = 'whole screen'
+            if game_window:
+                title = game_window.title
+                
             if debug_name:
-                print(f"===Debug: Checking {debug_name} for '{game_window.title}'...")
+                print(f"===Debug: Checking {debug_name} for '{title}'...")
             
 
             try:
@@ -25,8 +29,6 @@ class PixelUtil:
                         all_match = False
                         break # No need to check further if one pixel doesn't match
 
-                # gx, gy = x_offset + game_window.left, y_offset + game_window.top
-
                 if all_match:
                     if debug_name:
                         print(f"Pixel check passed: {debug_name} at ({x_offset},{y_offset}), expected {expected_rgb}, got {actual_rgb}.")
@@ -37,7 +39,7 @@ class PixelUtil:
                 return all_match
 
             except Exception as e:
-                print(f"Worker: Error during {debug_name} detection for '{game_window.title}': {e}")
+                print(f"Worker: Error during {debug_name} detection for '{title}': {e}")
                 return False
             
         # Helper function to check if a pixel color matches an expected color within tolerance

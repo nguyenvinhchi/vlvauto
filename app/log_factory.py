@@ -6,7 +6,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 import os
 
-def create_logger(name="auto-tool", log_file="log/auto-tool.log", level=logging.DEBUG):
+def create_logger(name="auto-tool", log_file="log/auto-tool.log", level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 

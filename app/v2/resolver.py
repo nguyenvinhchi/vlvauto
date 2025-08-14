@@ -1,7 +1,6 @@
 
 from concurrent.futures import ThreadPoolExecutor
 import time
-from PyQt6.QtCore import QTimer
 
 from app.log_factory import create_logger
 from app.send_window_event import simulate_click, simulate_mouse_move_around

@@ -8,13 +8,15 @@ from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, QMetaObject, QSettings
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QHBoxLayout, QLabel
 )
-from PyQt6.QtGui import QCursor, QGuiApplication, QColor
 
 from app.flow_layout import FlowLayout
+from app.game_scenario import CrashDialogScenario
+from app.get_game_window import find_window_by_title
 from app.log_factory import create_logger
 from app.pattern.create_pattern_dialog import PatternCreatorDialog
 from app.v2.base_app import BaseApp
 from app.v2.detection_worker_v2 import DetectionWorkerV2
+from app.v2.window_util import WindowUtil
 
 # Disable Qt High DPI scaling
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
@@ -46,6 +48,10 @@ class AutoMainWindow(BaseApp):
         self.inactivity_timer = QTimer(self)
         self.inactivity_timer.timeout.connect(self.check_inactivity)
         self.inactivity_timer.start(10000)
+
+        self.crash_report_timer = QTimer(self)
+        self.crash_report_timer.timeout.connect(self.check_crash_report)
+        self.crash_report_timer.start(60000)
 
         # self.mouse_timer = QTimer(self)
         # self.mouse_timer.timeout.connect(self.update_mouse_position)
@@ -126,6 +132,17 @@ class AutoMainWindow(BaseApp):
             self._last_activity = None  # reset to prevent repeated triggers
             self.running = True
             self.start_auto()
+
+    def check_crash_report(self):
+        crash_title = "MuMuPlayerCrashReporter"
+        crash_windows = WindowUtil.find_game_windows(crash_title)
+        crash_window = None
+        if crash_windows is not None:
+            crash_window = crash_windows[0]
+
+        if crash_windows is not None:
+            crash_detector = CrashDialogScenario(self.settings, self)
+            crash_detector.resolve_crash(crash_window)
 
     def on_show_pattern_creator_dialog(self):
         dlg = PatternCreatorDialog(self)

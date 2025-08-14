@@ -50,7 +50,15 @@ class WindowUtil:
             return screenshot
         except:
             print(f'Failed to screenshot window: {window.title}')
-    
+
+    @staticmethod
+    def screen_shot_whole_screen():
+        try:
+            screenshot = pyautogui.screenshot()
+            return screenshot
+        except:
+            print(f'Failed to screenshot whole screen')
+
     @staticmethod
     def get_hwnd(window):
         return window._hWnd

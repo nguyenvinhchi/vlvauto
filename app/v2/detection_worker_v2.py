@@ -1,9 +1,7 @@
 import os
 import time
-from typing import List
-from PyQt6.QtCore import QObject, QTimer, pyqtSlot, QSettings, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, pyqtSlot, QSettings
 
-from app.get_game_window import find_window
 from app.log_factory import create_logger
 from app.game_scenario import LoginSelectCharacterScenario, LoginSelectServerScenario, AccountLoginedWarningScenario, ServerConnectWarnScenario, StuckBuyingGameScenario, TownStuckGameScenario, UserPassLoginScenario
 from app.v2.game_tab_iterate import GameTabIterate
@@ -32,7 +30,7 @@ class DetectionWorkerV2(GameTabIterate, QObject):
             AccountLoginedWarningScenario(settings, self),
             LoginSelectServerScenario(settings, self),
             LoginSelectCharacterScenario(settings, self),
-            ServerConnectWarnScenario(settings, self),
+            ServerConnectWarnScenario(settings, self)
         ]
         
         for scenario in self.game_scenarios:
@@ -79,8 +77,10 @@ class DetectionWorkerV2(GameTabIterate, QObject):
         try:
             LOGGER.debug("Running detection")
             for game_window in self.game_windows:
-                    # iterate game tabs and check_game_scenario for each mumu window
-                    self.iterate_game_tab(game_window)
+                if not self.is_running():
+                    return
+                # iterate game tabs and check_game_scenario for each mumu window
+                self.iterate_game_tab(game_window)
 
         except Exception as e:
             LOGGER.error(f"Detection error: {e}", exc_info=True)

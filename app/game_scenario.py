@@ -21,6 +21,8 @@ def to_str_time(timestamp: QDateTime):
     if timestamp is None: return None
     return timestamp
 
+def to_screen_coord(point, game_window):
+    return point[0] + game_window.left, point[1] + game_window.top
 
 LAST_SEEN_LOGIN = 'last_seen_login'
 LAST_SEEN_TOWN_STUCK = 'last_seen_town_stuck'
@@ -75,7 +77,7 @@ class GameScenario(QObject):
         self.game_data.setdefault(game_tab_id, {})[key] = value
 
     def resolve_scenario(self, resolve_action: str, game_window, points: tuple):
-        screen_points = [self.to_screen_coord(p, game_window) for p in points]
+        screen_points = [to_screen_coord(p, game_window) for p in points]
         LOGGER.info(f"Received resolve action request: {resolve_action} - points: {points}")
         WindowUtil.focus(game_window)
         if resolve_action in (self.CLOSE_MEDICINE_BAG, self.CLOSE_MEDICINE_SHOP):
@@ -99,8 +101,6 @@ class GameScenario(QObject):
         else:
             LOGGER.info(f"{resolve_action} is not supported yet")
 
-    def to_screen_coord(self, point, game_window):
-        return point[0] + game_window.left, point[1] + game_window.top
 
 class StuckBuyingGameScenario(GameScenario):
     def __init__(self, settings, worker_parent):
@@ -305,24 +305,6 @@ class LoginSelectCharacterScenario(GameScenario):
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve login window: {e}')
 
-class CrashDialogScenario(GameScenario):
-    def __init__(self, settings: QSettings, parent_worker):
-        super().__init__(settings, parent_worker)
-        points = settings.value('Detection/CrashDialogPoints', type=str)
-        self.crash_dialog_points = ast.literal_eval(points)
-        self.close_points = ((self.crash_dialog_points[-1][0:2]),)
-        # print(self.close_warn_points)
-    
-    def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
-        try:
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.crash_dialog_points, 
-                                             debug_name="CrashDialog"):
-                LOGGER.info(f"Found Crash Dialog: {game_tab_id}")
-                self.resolve_scenario(self.CRASH_DIALOG, game_window, self.close_points)
-        
-        except Exception as e:
-            LOGGER.error(f'An error occured during  detect & solve login window: {e}', exc_info=True)
-
 class ServerConnectWarnScenario(GameScenario):
     def __init__(self, settings: QSettings, parent_worker):
         super().__init__(settings, parent_worker)
@@ -341,3 +323,39 @@ class ServerConnectWarnScenario(GameScenario):
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve login window: {e}', exc_info=True)
 
+class CrashDialogScenario:
+    def __init__(self, settings: QSettings, parent):
+        points = settings.value('Detection/CrashDialogPoints', type=str)
+        self.crash_dialog_points = ast.literal_eval(points)
+        self.close_points = ((self.crash_dialog_points[-1][0:2]),)
+        # print(self.close_warn_points)
+    
+    def resolve_crash(self, game_window):
+        title = game_window.title
+        try:
+            LOGGER.info(f"Found Crash report: {title}")
+            screen_points = [to_screen_coord(p, game_window) for p in self.close_points]
+            WindowUtil.focus(game_window)
+            Resolver.do_single_click(screen_points)
+        
+        except Exception as e:
+            LOGGER.error(f'An error occured during  detect & solve crash report: {e}', exc_info=True)
+
+
+class ReloadGameTabScenario:
+    def __init__(self, settings: QSettings, parent):
+        points = settings.value('Detection/CrashDialogPoints', type=str)
+        self.crash_dialog_points = ast.literal_eval(points)
+        self.close_points = ((self.crash_dialog_points[-1][0:2]),)
+        # print(self.close_warn_points)
+    
+    def resolve_reload(self, game_window):
+        title = game_window.title
+        try:
+            LOGGER.info(f"Found Crash report: {title}")
+            screen_points = [to_screen_coord(p, game_window) for p in self.close_points]
+            WindowUtil.focus(game_window)
+            Resolver.do_single_click(screen_points)
+        
+        except Exception as e:
+            LOGGER.error(f'An error occured during  detect & solve crash report: {e}', exc_info=True)

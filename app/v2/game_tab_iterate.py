@@ -37,6 +37,8 @@ class GameTabIterate:
         pass # implement in worker
 
     def iterate_game_tab(self, game_window):
+        if not self.is_running():
+            return
         
         hwnd = WindowUtil.get_hwnd(game_window)
         title = game_window.title
