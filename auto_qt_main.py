@@ -223,7 +223,7 @@ class AutoMainWindow(QWidget):
             self.start_auto()
         else:
             LOGGER.info("pause auto detect")
-            self.stop_detection_signal.emit();
+            self.stop_detection_signal.emit()
             self.start_button.setText("▶️")
 
     def start_auto(self):

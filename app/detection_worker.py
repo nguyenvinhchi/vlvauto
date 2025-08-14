@@ -5,7 +5,7 @@ from PIL import Image
 from app.detect_game_widget import get_window_screenshot
 from app.get_game_window import find_window
 from app.log_factory import create_logger
-from app.game_scenario import LoginScenarioV2, StuckBuyingGameScenario, TownStuckGameScenario
+from app.game_scenario import StuckBuyingGameScenario, TownStuckGameScenario
 
 LOGGER = create_logger()
 
@@ -21,8 +21,7 @@ class DetectionWorker(QObject):
         self.timer = None  # Will be created after moving to thread
         self.game_windows = None
         self.game_scenarios = [StuckBuyingGameScenario(settings), 
-                               TownStuckGameScenario(settings),
-                               LoginScenarioV2(settings)
+                               TownStuckGameScenario(settings)
                                ]
         for scenario in self.game_scenarios:
             scenario.setParent(self)

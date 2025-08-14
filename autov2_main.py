@@ -3,20 +3,21 @@ import sys
 import win32api
 
 from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, QMetaObject, QSettings, QDateTime, pyqtSlot
+from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, QMetaObject, QSettings, QDateTime
+from PyQt6.QtGui import QCursor
 
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QHBoxLayout, QLabel
+    QApplication, QWidget, QPushButton, QHBoxLayout
 )
 
 from app.flow_layout import FlowLayout
 from app.game_scenario import CrashDialogScenario
-from app.get_game_window import find_window_by_title
 from app.log_factory import create_logger
 from app.pattern.create_pattern_dialog import PatternCreatorDialog
 from app.v2.base_app import BaseApp
 from app.v2.detection_worker_v2 import DetectionWorkerV2
 from app.v2.window_util import WindowUtil
+from auto_qt_main import DraggableButton
 
 # Disable Qt High DPI scaling
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"
@@ -26,12 +27,12 @@ QApplication.setAttribute(Qt.ApplicationAttribute.AA_Use96Dpi)
 
 LOGGER = create_logger(name='MainWindow')
 
-WINDOW_W = 220
-WINDOW_H = 170
+WINDOW_W = 120
+WINDOW_H = 100
 START_POS_X = 10
 START_POS_Y = 10
-#(521, 410, 34, 34, 33)
-#293 813, 51 455
+
+
 class AutoMainWindow(BaseApp):
     start_detection_signal = pyqtSignal()
     stop_detection_signal = pyqtSignal()
@@ -70,13 +71,25 @@ class AutoMainWindow(BaseApp):
         )
         # self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFixedSize(WINDOW_W, WINDOW_H)
-        self.move(START_POS_X, START_POS_Y)
+        screen_geometry = QApplication.primaryScreen().availableGeometry()
+        screen_height = screen_geometry.height()
+        screen_x = screen_geometry.x()
+        screen_y = screen_geometry.y()
+        # Position at bottom-left
+        pos_x = screen_x + 10  # 10px from left
+        pos_y = screen_y + screen_height - WINDOW_H - 10  # 10px from bottom
+        self.move(pos_x, pos_y)
 
         central_widget = QWidget(self)
         central_widget.setObjectName("central_widget")
         central_widget.setStyleSheet("#central_widget { background-color: transparent; }")
         # layout = QHBoxLayout(self)
         layout = FlowLayout(central_widget)
+
+        self.move_button = DraggableButton("🖱️", self)
+        self.move_button.setToolTip("Drag to move the tool window")
+        self.move_button.pressed.connect(self.on_start_drag)
+        layout.addWidget(self.move_button)
 
         self.start_button = QPushButton(" ▶️ ", self)
         self.start_button.clicked.connect(self.on_start)
@@ -112,7 +125,7 @@ class AutoMainWindow(BaseApp):
             self.start_auto()
         else:
             LOGGER.info("pause auto detect")
-            self.stop_detection_signal.emit();
+            self.stop_detection_signal.emit()
             self.start_button.setText("▶️")
 
     def check_inactivity(self):
@@ -197,6 +210,33 @@ class AutoMainWindow(BaseApp):
         LOGGER.info("start auto detect")
         self.start_detection_signal.emit()
         self.start_button.setText("⏸️")
+
+    def on_start_drag(self):
+        self._drag_pos = QCursor.pos() - self.frameGeometry().topLeft()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.MouseButton.LeftButton and self._drag_pos:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+
+    def child_mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def child_mouseMoveEvent(self, event):
+        if event.buttons() == Qt.MouseButton.LeftButton and self._drag_pos:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+
+    def child_mouseReleaseEvent(self, event):
+        self._drag_pos = None
+        event.accept()
         
     def closeEvent(self, event):
         LOGGER.info("Closing window...")

@@ -347,7 +347,6 @@ class ReloadGameTabScenario:
         points = settings.value('Detection/CrashDialogPoints', type=str)
         self.crash_dialog_points = ast.literal_eval(points)
         self.close_points = ((self.crash_dialog_points[-1][0:2]),)
-        # print(self.close_warn_points)
     
     def resolve_reload(self, game_window):
         title = game_window.title
