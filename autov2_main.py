@@ -16,8 +16,8 @@ from app.log_factory import create_logger
 from app.pattern.create_pattern_dialog import PatternCreatorDialog
 from app.v2.base_app import BaseApp
 from app.v2.detection_worker_v2 import DetectionWorkerV2
+from app.v2.draggable_button import DraggableButton
 from app.v2.window_util import WindowUtil
-from auto_qt_main import DraggableButton
 
 # Disable Qt High DPI scaling
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "0"

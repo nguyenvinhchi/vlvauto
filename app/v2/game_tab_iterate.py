@@ -9,11 +9,13 @@ from PyQt6.QtCore import QSettings
 
 from app.game_scenario import GameScenario
 from app.log_factory import create_logger
+from app.v2.auto_open_game import AutoOpenGame
+from app.v2.check_game_auto import CheckAutoIsOn
 from app.v2.check_pixel import PixelUtil
 from app.v2.window_util import WindowUtil
 LOGGER = create_logger(name='GameTabIterate')
 
-class GameTabIterate:
+class GameTabIterate(CheckAutoIsOn, AutoOpenGame):
     MAIN_WINDOW = "main_window"
     GAME_WINDOW = "game_window"
     LOGIN_WINDOW = "login_window"
@@ -23,8 +25,9 @@ class GameTabIterate:
     SEPARATOR = "__"
 
     def __init__(self, settings: QSettings, *args, **kwargs):
+        CheckAutoIsOn.__init__(self, settings=settings)
+        AutoOpenGame.__init__(self, settings=settings)
         self.settings = settings
-        super().__init__(*args, **kwargs)
         points = settings.value('Detection/GameWindowMainPoints', type=str)
         self.game_window_main_points = ast.literal_eval(points)
 
@@ -51,6 +54,8 @@ class GameTabIterate:
         if not main_tab_found:
             print(f"Worker WARNING: Could not find main MuMu tab after {max_initial_tab_attempts} attempts for window '{game_window.title}'. Skipping this window.")
             return # Skip to next game window if main tab not found
+        else:
+            self.check_game_exit(hwnd, game_window)
 
         # Phase 2: Iterate through game tabs until main tab is seen again
         print(f"===Worker: Starting game tab processing for window '{title}'...")
@@ -76,6 +81,7 @@ class GameTabIterate:
             file_name = os.path.join("tmp", game_tab_id + ".png")
             screenshot.save(file_name)
             self.check_game_scenario(game_window, screenshot, game_tab_id)
+            self.detect_game_auto_off(game_window, screenshot)
         else:
             print(f"Worker WARNING: Exceeded max game tab processing iterations ({max_game_tab_processing_iterations}) for window '{game_window.title}'. May not have processed all tabs.")
 

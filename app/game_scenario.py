@@ -1,13 +1,11 @@
 
 
 import ast
-import time
 import cv2
 import numpy as np
-import win32gui
+from PyQt6.QtCore import QObject, QSettings, QDateTime
 from app.detect_game_widget import detect_pattern, read_image_file
 from app.log_factory import create_logger
-from app.send_window_event import simulate_click, simulate_mouse_move_around
 from app.v2.check_pixel import PixelUtil
 from app.v2.resolver import Resolver
 from app.v2.window_util import WindowUtil
@@ -15,7 +13,6 @@ from app.v2.window_util import WindowUtil
 
 LOGGER = create_logger()
 
-from PyQt6.QtCore import QObject, QSettings, QDateTime
 
 def to_str_time(timestamp: QDateTime):
     if timestamp is None: return None
@@ -247,12 +244,11 @@ class AccountLoginedWarningScenario(GameScenario):
         points = settings.value('Detection/GameWindowAccountLoginedWarnPoints', type=str)
         self.login_warn_points = ast.literal_eval(points)
         self.close_warn_points = ((self.login_warn_points[-1][0:2]),)
-        # print(self.close_warn_points)
     
     def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
         try:
             if PixelUtil.check_pixel_pattern(game_window, screenshot, self.login_warn_points, 
-                                             debug_name="AccountLoginedWarning"):
+                                             debug_name=None):
                 LOGGER.info(f"Found login window - Tai khoan dang dang nhap: {game_tab_id}")
                 self.resolve_scenario(self.ACOUNT_LOGINED_WARNING, game_window, self.close_warn_points)
         
@@ -315,8 +311,7 @@ class ServerConnectWarnScenario(GameScenario):
     
     def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
         try:
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.server_connect_dialog_points, 
-                                             debug_name="ServerConnect"):
+            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.server_connect_dialog_points):
                 LOGGER.info(f"Found Server connect warn: {game_tab_id}")
                 self.resolve_scenario(self.SERVER_CONNECT, game_window, self.close_points)
         

@@ -12,7 +12,9 @@ LOGGER = create_logger()
 class DetectionWorkerV2(GameTabIterate, QObject):
 
     def __init__(self, settings: QSettings):
-        super().__init__(settings)
+        GameTabIterate.__init__(self, settings=settings)
+        # CheckAutoIsOn.__init__(self, settings=settings)
+        QObject.__init__(self)
         self.settings=settings
         self.WINDOW_TITLE_PATTERN = settings.value("Detection/GameWindowTitlePattern", "A1")
         self.inprogress_timeout_seconds = settings.value("Detection/ResolveInprogressTimeoutSeconds", 60, type=int)
