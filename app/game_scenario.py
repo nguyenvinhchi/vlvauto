@@ -142,6 +142,13 @@ class TownStuckGameScenario(GameScenario):
         self.lower_color_range = np.array(self.lower_color_range, dtype=np.uint8).flatten()
         self.upper_color_range = np.array(self.upper_color_range, dtype=np.uint8).flatten()
 
+        # while town stuck, also check if char's blood bar is full for a duration, if so try to click game auto button
+        points = settings.value('Detection/GameAutoOff2', type=str)
+        self.game_auto_off_points2 = ast.literal_eval(points)
+
+        points = settings.value('Detection/GameAutoButtonPoints', type=str)
+        self.game_auto_points = (ast.literal_eval(points),)
+
         
     def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
         try:
@@ -157,6 +164,7 @@ class TownStuckGameScenario(GameScenario):
                 
                 if elapsed_seconds >= self.TOWN_STUCK_SECONDS:
                     LOGGER.info(f'stuck in town for {elapsed_seconds}, try to solve - {game_tab_id}')
+                    self._detect_game_auto_is_off(game_window, screenshot, game_tab_id)
                     self._solve_town_stuck(game_window, game_tab_id)
                     # reset state
                     self.set_game_data(game_tab_id, LAST_SEEN_TOWN_STUCK, None)
@@ -199,6 +207,12 @@ class TownStuckGameScenario(GameScenario):
         LOGGER.info(f'Try to solve town stuck: move around - {game_tab_id}')
         points = ((self.move_around_x_offset, self.move_around_y_offset),)
         self.resolve_scenario(self.MOVE_AROUND_ABIT, game_window, points)
+
+    def _detect_game_auto_is_off(self, game_window, screenshot, game_tab_id):
+        if PixelUtil.check_pixel_pattern(game_window, screenshot, self.game_auto_off_points2, color_tolerance=2):
+            LOGGER.info(f'Game auto seems off while checking town stuck for {game_tab_id} => simulate click game auto button')
+            screen_points = [to_screen_coord(p, game_window) for p in self.game_auto_points]
+            Resolver.do_single_click(screen_points)
 
 
 class UserPassLoginScenario(GameScenario):

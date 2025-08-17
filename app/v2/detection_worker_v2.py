@@ -1,5 +1,4 @@
 import os
-import time
 from PyQt6.QtCore import QObject, QTimer, pyqtSlot, QSettings
 
 from app.log_factory import create_logger
@@ -72,7 +71,6 @@ class DetectionWorkerV2(GameTabIterate, QObject):
         self.stop()
 
     def run_detection(self):
-        time.sleep(0.2)
         if not self.running or not self.game_windows:
             return
 

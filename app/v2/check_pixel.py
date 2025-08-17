@@ -14,7 +14,6 @@ class PixelUtil:
             if debug_name:
                 print(f"===Debug: Checking {debug_name} for '{title}'...")
             
-
             try:
                 # Ensure the window is active before taking a screenshot for reliability
 
