@@ -2,12 +2,11 @@ import os
 import sys
 import win32api
 
-from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtCore import QThread, Qt, pyqtSignal, QTimer, QMetaObject, QSettings, QDateTime
-from PyQt6.QtGui import QCursor
+from PyQt6.QtGui import QCursor, QGuiApplication, QColor
 
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QHBoxLayout
+    QApplication, QWidget, QPushButton, QHBoxLayout, QLabel
 )
 
 from app.flow_layout import FlowLayout
@@ -27,8 +26,8 @@ QApplication.setAttribute(Qt.ApplicationAttribute.AA_Use96Dpi)
 
 LOGGER = create_logger(name='MainWindow')
 
-WINDOW_W = 120
-WINDOW_H = 100
+WINDOW_W = 220
+WINDOW_H = 120
 START_POS_X = 10
 START_POS_Y = 10
 
@@ -54,9 +53,9 @@ class AutoMainWindow(BaseApp):
         self.crash_report_timer.timeout.connect(self.check_crash_report)
         self.crash_report_timer.start(60000)
 
-        # self.mouse_timer = QTimer(self)
-        # self.mouse_timer.timeout.connect(self.update_mouse_position)
-        # self.mouse_timer.start(1000)
+        self.mouse_timer = QTimer(self)
+        self.mouse_timer.timeout.connect(self.update_mouse_position)
+        self.mouse_timer.start(1000)
 
         self.init_ui()
         
@@ -104,8 +103,11 @@ class AutoMainWindow(BaseApp):
         self.exit_button.clicked.connect(self.close)
         layout.addWidget(self.exit_button)
 
-        # self.status_label = QLabel("x,y: 0,0", self)
-        # layout.addWidget(self.status_label)
+        self.status_label = QLabel("x,y: 0,0", self)
+        layout.addWidget(self.status_label)
+
+        self.color_label = QLabel("Curren color", self)
+        layout.addWidget(self.color_label)
 
         main_layout = QHBoxLayout(self)
         main_layout.addWidget(central_widget)
@@ -177,34 +179,38 @@ class AutoMainWindow(BaseApp):
         
         self.thread.start()
 
-    # def update_mouse_position(self):
-    #     """
-    #     Slot to be called by the QTimer.
-    #     It gets the global mouse position and updates the status label.
-    #     """
-    #     # Get the global position of the cursor
-    #     global_pos = QCursor.pos()
-    #     x, y = global_pos.x(), global_pos.y()
+    def update_mouse_position(self):
+        """
+        Slot to be called by the QTimer.
+        It gets the global mouse position and updates the status label.
+        """
+        # Get the global position of the cursor
+        global_pos = QCursor.pos()
+        x, y = global_pos.x(), global_pos.y()
         
-    #     # Capture pixel color under mouse
-    #     screen = QGuiApplication.primaryScreen()
-    #     if screen:
-    #         img = screen.grabWindow(0, x, y, 1, 1).toImage()
-    #         pixel_color = QColor(img.pixel(0, 0))
-    #         r, g, b = pixel_color.red(), pixel_color.green(), pixel_color.blue()
-    #         rgb_str = f"rgb({r},{g},{b})"
+        # Capture pixel color under mouse
+        screen = QGuiApplication.primaryScreen()
+        if screen:
+            img = screen.grabWindow(0, x, y, 1, 1).toImage()
+            pixel_color = QColor(img.pixel(0, 0))
+            r, g, b = pixel_color.red(), pixel_color.green(), pixel_color.blue()
+            rgb_str = f"({r},{g},{b})"
 
-    #         # Show position and color
-    #         self.status_label.setText(f'x,y: {x},{y}|{rgb_str}')
+            # Show position and color
+            self.status_label.setText(f'{x},{y}|{rgb_str}')
 
-    #         # Apply tiny square + background color via CSS
-    #         self.status_label.setStyleSheet(f"""
-    #             background-color: {rgb_str};
-    #             color: white;
-    #             padding: 10px;
-    #             border: 2px solid white;
-    #             border-radius: 6px;
-    #         """)
+            # Apply tiny square + background color via CSS
+            self.status_label.setStyleSheet(f"""
+                background-color: black;
+                color: white;
+                padding: 10px;
+                border: 2px solid white;
+                border-radius: 6px;
+            """)
+
+            self.color_label.setStyleSheet(f"""
+                background-color: {rgb_str};
+            """)
 
     def start_auto(self):
         LOGGER.info("start auto detect")

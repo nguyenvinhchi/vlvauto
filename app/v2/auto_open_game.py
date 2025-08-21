@@ -3,9 +3,9 @@ import ast
 import time
 from PyQt6.QtCore import QSettings, QDateTime
 
-from app.game_scenario import to_screen_coord
 from app.log_factory import create_logger
 from app.v2.resolver import Resolver
+from app.v2.window_util import WindowUtil
 
 LOGGER = create_logger(name='AutoOpenGame')
 
@@ -51,12 +51,12 @@ class AutoOpenGame:
             self.auto_open_check_start_time[hwnd] = None
 
     def open_game_tab(self, shortcut_point, game_window):
-        screen_point = to_screen_coord(shortcut_point, game_window)
+        screen_point = WindowUtil.to_screen_coord(shortcut_point, game_window)
         # click game icon
         Resolver.do_single_click((screen_point,))
         time.sleep(0.2)
         # click back to main tab
         LOGGER.debug(f'Simulate click main tab point {self.main_tab_point}')
-        screen_point = to_screen_coord(self.main_tab_point, game_window)
+        screen_point = WindowUtil.to_screen_coord(self.main_tab_point, game_window)
         Resolver.do_single_click((screen_point,))
         time.sleep(0.2)

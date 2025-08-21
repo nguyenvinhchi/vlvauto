@@ -6,7 +6,6 @@ import numpy as np
 from PyQt6.QtCore import QObject, QSettings, QDateTime
 from app.detect_game_widget import detect_pattern, read_image_file
 from app.log_factory import create_logger
-from app.v2.check_pixel import PixelUtil
 from app.v2.resolver import Resolver
 from app.v2.window_util import WindowUtil
 
@@ -17,9 +16,6 @@ LOGGER = create_logger()
 def to_str_time(timestamp: QDateTime):
     if timestamp is None: return None
     return timestamp
-
-def to_screen_coord(point, game_window):
-    return point[0] + game_window.left, point[1] + game_window.top
 
 LAST_SEEN_LOGIN = 'last_seen_login'
 LAST_SEEN_TOWN_STUCK = 'last_seen_town_stuck'
@@ -74,7 +70,7 @@ class GameScenario(QObject):
         self.game_data.setdefault(game_tab_id, {})[key] = value
 
     def resolve_scenario(self, resolve_action: str, game_window, points: tuple):
-        screen_points = [to_screen_coord(p, game_window) for p in points]
+        screen_points = [WindowUtil.to_screen_coord(p, game_window) for p in points]
         LOGGER.info(f"Received resolve action request: {resolve_action} - points: {points}")
         WindowUtil.focus(game_window)
         if resolve_action in (self.CLOSE_MEDICINE_BAG, self.CLOSE_MEDICINE_SHOP):
@@ -114,11 +110,11 @@ class StuckBuyingGameScenario(GameScenario):
         
     def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
         try:
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.shop_points, debug_name=None):
+            if WindowUtil.check_pixel_pattern(game_window, screenshot, self.shop_points, debug_name=None):
                 LOGGER.info(f'Found buy stuck - shop - {game_window.title}')
                 self.resolve_scenario(self.CLOSE_MEDICINE_SHOP, game_window, self.shop_close_points)
 
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.bag_points, debug_name=None):
+            if WindowUtil.check_pixel_pattern(game_window, screenshot, self.bag_points, debug_name=None):
                 LOGGER.info(f'Found buy stuck - bag - {game_window.title}')
                 self.resolve_scenario(self.CLOSE_MEDICINE_BAG, game_window, self.bag_close_points)
         except Exception as e:
@@ -209,9 +205,9 @@ class TownStuckGameScenario(GameScenario):
         self.resolve_scenario(self.MOVE_AROUND_ABIT, game_window, points)
 
     def _detect_game_auto_is_off(self, game_window, screenshot, game_tab_id):
-        if PixelUtil.check_pixel_pattern(game_window, screenshot, self.game_auto_off_points2, color_tolerance=2):
+        if WindowUtil.check_pixel_pattern(game_window, screenshot, self.game_auto_off_points2, color_tolerance=2):
             LOGGER.info(f'Game auto seems off while checking town stuck for {game_tab_id} => simulate click game auto button')
-            screen_points = [to_screen_coord(p, game_window) for p in self.game_auto_points]
+            screen_points = [WindowUtil.to_screen_coord(p, game_window) for p in self.game_auto_points]
             Resolver.do_single_click(screen_points)
 
 
@@ -232,12 +228,13 @@ class UserPassLoginScenario(GameScenario):
             if self.should_login(game_window, screenshot, game_tab_id):
                 self.resolve_scenario(self.AUTO_LOGIN, game_window, self.login_points)
                 self.set_game_data(game_tab_id, LAST_SEEN_LOGIN, None)
+                return "LOGINED"
 
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve login window: {e}', exc_info=True)
 
     def should_login(self, game_window, screenshot, game_tab_id):
-        if PixelUtil.check_pixel_pattern(game_window, screenshot, self.user_pass_login_points):
+        if WindowUtil.check_pixel_pattern(game_window, screenshot, self.user_pass_login_points):
             LOGGER.info(f"Found User pass login window: {game_tab_id}")
             if self.get_game_data(game_tab_id, LAST_SEEN_LOGIN) is None:
                 self.set_game_data(game_tab_id, LAST_SEEN_LOGIN, QDateTime.currentDateTime())
@@ -261,7 +258,7 @@ class AccountLoginedWarningScenario(GameScenario):
     
     def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
         try:
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.login_warn_points, 
+            if WindowUtil.check_pixel_pattern(game_window, screenshot, self.login_warn_points, 
                                              debug_name=None):
                 LOGGER.info(f"Found login window - Tai khoan dang dang nhap: {game_tab_id}")
                 self.resolve_scenario(self.ACOUNT_LOGINED_WARNING, game_window, self.close_warn_points)
@@ -285,9 +282,10 @@ class LoginSelectServerScenario(GameScenario):
         try:
             LOGGER.debug(f'checking select server login scenario: {game_tab_id}')
             
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.game_window_select_server_points):
+            if WindowUtil.check_pixel_pattern(game_window, screenshot, self.game_window_select_server_points):
                 LOGGER.info(f"=====Found login window - select server: {game_tab_id}")
                 self.resolve_scenario(self.SELECT_SERVER_TO_LOGIN, game_window, self.login_points)
+                return "LOGINED"
         
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve login window: {e}', exc_info=True)
@@ -308,9 +306,10 @@ class LoginSelectCharacterScenario(GameScenario):
         try:
             LOGGER.debug(f'checking select character login scenario: {game_tab_id}')
             
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.game_window_select_character_points):
+            if WindowUtil.check_pixel_pattern(game_window, screenshot, self.game_window_select_character_points):
                 LOGGER.info(f"=====Found login window - select character: {game_tab_id}")
                 self.resolve_scenario(self.SELECT_CHARACTER_TO_LOGIN, game_window, self.login_points)
+                return "LOGINED"
         
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve login window: {e}')
@@ -325,7 +324,7 @@ class ServerConnectWarnScenario(GameScenario):
     
     def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
         try:
-            if PixelUtil.check_pixel_pattern(game_window, screenshot, self.server_connect_dialog_points):
+            if WindowUtil.check_pixel_pattern(game_window, screenshot, self.server_connect_dialog_points):
                 LOGGER.info(f"Found Server connect warn: {game_tab_id}")
                 self.resolve_scenario(self.SERVER_CONNECT, game_window, self.close_points)
         
@@ -343,7 +342,7 @@ class CrashDialogScenario:
         title = game_window.title
         try:
             LOGGER.info(f"Found Crash report: {title}")
-            screen_points = [to_screen_coord(p, game_window) for p in self.close_points]
+            screen_points = [WindowUtil.to_screen_coord(p, game_window) for p in self.close_points]
             WindowUtil.focus(game_window)
             Resolver.do_single_click(screen_points)
         
@@ -361,7 +360,7 @@ class ReloadGameTabScenario:
         title = game_window.title
         try:
             LOGGER.info(f"Found Crash report: {title}")
-            screen_points = [to_screen_coord(p, game_window) for p in self.close_points]
+            screen_points = [WindowUtil.to_screen_coord(p, game_window) for p in self.close_points]
             WindowUtil.focus(game_window)
             Resolver.do_single_click(screen_points)
         

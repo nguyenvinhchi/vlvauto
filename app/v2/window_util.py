@@ -31,7 +31,7 @@ class WindowUtil:
     @staticmethod
     def send_trl_tab(window):
         pyautogui.hotkey('ctrl', 'tab')
-        time.sleep(1)
+        # time.sleep(0.1)
 
     @staticmethod
     def focus(window):
@@ -62,3 +62,63 @@ class WindowUtil:
     @staticmethod
     def get_hwnd(window):
         return window._hWnd
+    
+    @staticmethod
+    def check_pixel_pattern(game_window, screenshot, pixel_points_config, debug_name=None, color_tolerance=7):
+            """
+            Generic method to check a pixel pattern against a given window.
+            Returns a tuple: (bool is_match, list overlay_points).
+            """
+            
+            title = 'whole screen'
+            if game_window:
+                title = game_window.title
+                
+            if debug_name:
+                print(f"===Debug: Checking {debug_name} for '{title}'...")
+            
+            try:
+                # Ensure the window is active before taking a screenshot for reliability
+
+                all_match = True
+                
+                for point_data in pixel_points_config:
+                    x, y, expected_r, expected_g, expected_b = point_data
+                    # x, y = WindowUtil.to_screen_coord((x_offset, y_offset), game_window)
+                    expected_rgb = (expected_r, expected_g, expected_b)
+
+                    # Get the color of the pixel relative to the window's top-left
+                    actual_rgb = screenshot.getpixel((x, y))
+                    if not WindowUtil.is_color_match(actual_rgb, expected_rgb, color_tolerance):
+                        all_match = False
+                        break # No need to check further if one pixel doesn't match
+
+                if all_match:
+                    if debug_name:
+                        print(f"Pixel check passed: {debug_name} at ({x},{y}), expected {expected_rgb}, got {actual_rgb}.")
+                else:
+                    if debug_name:
+                        screen_x, screen_y = WindowUtil.to_screen_coord((x, y), game_window)
+                        print(f"screen coordinate: {debug_name} at ({screen_x},{screen_y}), expected {expected_rgb}, got {actual_rgb}.")
+                        print(f"Pixel check not match: {debug_name} at ({x},{y}), expected {expected_rgb}, got {actual_rgb}.")
+
+                return all_match
+
+            except Exception as e:
+                print(f"Worker: Error during {debug_name} detection for '{title}': {e}")
+                return False
+            
+    @staticmethod
+    def is_color_match(actual_rgb, expected_rgb, tolerance=5):
+        """
+        Checks if an actual RGB color is within a given tolerance of an expected RGB color.
+        """
+        return (
+            abs(actual_rgb[0] - expected_rgb[0]) <= tolerance and
+            abs(actual_rgb[1] - expected_rgb[1]) <= tolerance and
+            abs(actual_rgb[2] - expected_rgb[2]) <= tolerance
+        )
+    
+    @staticmethod
+    def to_screen_coord(point, game_window):
+        return point[0] + game_window.left, point[1] + game_window.top
