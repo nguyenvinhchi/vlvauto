@@ -36,10 +36,10 @@ class GameTabIterate(CheckAutoIsOn, AutoOpenGame):
 
     def check_game_scenario(self, game_window, screenshot, game_tab_id="0"):
         for scenario in self.get_game_scenarios():
-            r = scenario.detect_and_solve(game_window, screenshot, game_tab_id)
-            if r == "LOGINED":
-                print(f'Finish login scenario => check if game auto off')
-                self.detect_game_auto_off(game_window)
+            scenario.detect_and_solve(game_window, screenshot, game_tab_id)
+            # if r == "LOGINED":
+            #     print(f'Finish login scenario => check if game auto off')
+            # self.detect_game_auto_off(game_window)
                 
     def is_running(self):
         pass # implement in worker
@@ -85,6 +85,7 @@ class GameTabIterate(CheckAutoIsOn, AutoOpenGame):
             # file_name = os.path.join("tmp", game_tab_id + ".png")
             # screenshot.save(file_name)
             self.check_game_scenario(game_window, screenshot, game_tab_id)
+            self.detect_game_auto_off(game_window)
             time.sleep(2)
         else:
             print(f"Exceeded max game tab processing iterations ({max_game_tab_processing_iterations}) for window '{game_window.title}'. May not have processed all tabs.")
