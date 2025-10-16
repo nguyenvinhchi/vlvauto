@@ -2,8 +2,7 @@
 
 # Build settings
 PATH_SEPARATOR=":"
-# SCRIPT="auto_qt_main.py"
-SCRIPT="autov2_main.py"
+SCRIPT="autov3_main.py"
 DIST_FOLDER="dist"
 BUILD_FOLDER="build"
 SPEC_FILE="${SCRIPT%.py}.spec"

@@ -54,9 +54,9 @@ class AutoOpenGame:
         screen_point = WindowUtil.to_screen_coord(shortcut_point, game_window)
         # click game icon
         Resolver.do_single_click((screen_point,))
-        time.sleep(0.2)
+        time.sleep(1)
         # click back to main tab
         LOGGER.debug(f'Simulate click main tab point {self.main_tab_point}')
         screen_point = WindowUtil.to_screen_coord(self.main_tab_point, game_window)
         Resolver.do_single_click((screen_point,))
-        time.sleep(0.2)
+        time.sleep(1)

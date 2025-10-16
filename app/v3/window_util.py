@@ -5,10 +5,6 @@ import pygetwindow
 
 class WindowUtil:
     @staticmethod
-    def get_all_windows(title: str):
-        return pygetwindow.getAllWindows()
-    
-    @staticmethod
     def find_game_windows(title: str):
         """
         Scans for game windows based on the predefined title pattern.

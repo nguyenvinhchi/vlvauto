@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['autov2_main.py'],
+    ['autov3_main.py'],
     pathex=[],
     binaries=[],
     datas=[('data', 'data')],
