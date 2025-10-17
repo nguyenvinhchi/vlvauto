@@ -1,5 +1,4 @@
 import pyautogui
-import win32api
 import win32con
 import win32gui
 import time
@@ -22,19 +21,17 @@ def simulate_click(x, y, action='click'):
     # Move cursor (optional, for debug)
     # win32api.SetCursorPos((x, y))
 
-    # Send mouse down and up at screen position
-    pyautogui.leftClick(x, y)
     # win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
     # time.sleep(0.01)  # slight delay
     # win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
 
     if action == 'click':
+        # Send mouse down and up at screen position
+        pyautogui.leftClick(x, y)
         print(f"🖱️ Simulated click at: ({x}, {y})")
     elif action == 'double_click':
         # Send mouse down and up at screen position
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, x, y, 0, 0)
-        time.sleep(0.01)  # slight delay
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, x, y, 0, 0)
+        pyautogui.doubleClick(x, y)
         print(f"🖱️ Simulated double-click at: ({x}, {y})")
 
 def simulate_mouse_drag(start_x, start_y, direction='up', distance=60, duration=0.5):
@@ -69,21 +66,3 @@ def simulate_tab():
     pyautogui.keyDown('ctrl')
     pyautogui.press('tab')
     pyautogui.keyUp('ctrl')
-
-def send_ctrl_tab(hwnd):
-    """
-    Send Ctrl+Tab keystroke to a specific window
-    """
-    # Bring window to foreground
-    # win32gui.SetForegroundWindow(hwnd)
-    # time.sleep(0.2)
-
-    # Press Ctrl down
-    win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
-    # Press Tab
-    win32api.keybd_event(win32con.VK_TAB, 0, 0, 0)
-    time.sleep(0.1)
-    # Release Tab
-    win32api.keybd_event(win32con.VK_TAB, 0, win32con.KEYEVENTF_KEYUP, 0)
-    # Release Ctrl
-    win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)

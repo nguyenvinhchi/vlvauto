@@ -18,7 +18,7 @@ class WindowUtil:
             # Find all windows that contain the WINDOW_TITLE_PATTERN in their title
             # all_windows = find_window(self.WINDOW_TITLE_PATTERN)
             all_windows = pygetwindow.getWindowsWithTitle(title)
-
+            
             if all_windows:
                 detected_titles = [win.title for win in all_windows]
                 log_message = f"Detected {len(all_windows)} game windows: {', '.join(detected_titles)}"

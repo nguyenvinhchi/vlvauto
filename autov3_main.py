@@ -52,7 +52,19 @@ class AutoMainWindow(BaseApp):
         super().__init__()
 
         self.running = False
+        self._drag_pos = None
         self.settings = QSettings("data/config_v3.ini", QSettings.Format.IniFormat)
+
+        self.INACTIVITY_DURATION = self.settings.value("Detection/InactivityDurationAutoStartSeconds", 60, type=int)
+        self._last_mouse_pos = win32api.GetCursorPos()
+        self._last_activity = QDateTime.currentDateTime() # app start is the user activity
+        self.inactivity_timer = QTimer(self)
+        self.inactivity_timer.timeout.connect(self.check_inactivity)
+        self.inactivity_timer.start(10000)
+
+        self.mouse_timer = QTimer(self)
+        self.mouse_timer.timeout.connect(self.update_mouse_position)
+        self.mouse_timer.start(1000)
 
         self.init_ui()
         self.start_detect_worker()
@@ -123,6 +135,62 @@ class AutoMainWindow(BaseApp):
             LOGGER.info("pause auto detect")
             self.stop_detection_signal.emit()
             self.start_button.setText("▶️")
+
+    def check_inactivity(self):
+        current_pos = win32api.GetCursorPos()
+
+        if current_pos != self._last_mouse_pos:
+            self._last_mouse_pos = current_pos
+            self._last_activity = QDateTime.currentDateTime()
+            return
+        if self.running or self._last_activity is None:
+            return
+        
+        elapsed = self._last_activity.secsTo(QDateTime.currentDateTime())
+        
+        if elapsed >= self.INACTIVITY_DURATION:
+            LOGGER.info(f"Auto-start due to {self.INACTIVITY_DURATION} inactivity.")
+            self._last_activity = None  # reset to prevent repeated triggers
+            self.running = True
+            self.start_auto()
+
+    def start_auto(self):
+        LOGGER.info("start auto detect")
+        self.start_detection_signal.emit()
+        self.start_button.setText("⏸️")
+
+    def update_mouse_position(self):
+        """
+        Slot to be called by the QTimer.
+        It gets the global mouse position and updates the status label.
+        """
+        # Get the global position of the cursor
+        global_pos = QCursor.pos()
+        x, y = global_pos.x(), global_pos.y()
+        
+        # Capture pixel color under mouse
+        screen = QGuiApplication.primaryScreen()
+        if screen:
+            img = screen.grabWindow(0, x, y, 1, 1).toImage()
+            pixel_color = QColor(img.pixel(0, 0))
+            r, g, b = pixel_color.red(), pixel_color.green(), pixel_color.blue()
+            rgb_str = f"({r},{g},{b})"
+
+            # Show position and color
+            self.status_label.setText(f'{x},{y}|{rgb_str}')
+
+            # Apply tiny square + background color via CSS
+            self.status_label.setStyleSheet(f"""
+                background-color: black;
+                color: white;
+                padding: 10px;
+                border: 2px solid white;
+                border-radius: 6px;
+            """)
+
+            self.color_label.setStyleSheet(f"""
+                background-color: {rgb_str};
+            """)
     
     def on_test(self):
         LOGGER.debug("Open test dialog")

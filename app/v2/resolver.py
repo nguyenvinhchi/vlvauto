@@ -6,8 +6,7 @@ from app.log_factory import create_logger
 from app.send_window_event import simulate_click, simulate_mouse_move_around
 
 
-LOGGER = create_logger(name='DoLogin')
-
+LOGGER = create_logger(name='Resolver')
 
 def await_execute(func, *args, **kwargs):
         """
@@ -15,7 +14,7 @@ def await_execute(func, *args, **kwargs):
         """
         with ThreadPoolExecutor() as executor:
             future = executor.submit(func, *args, **kwargs)
-            r = future.result()  # Blocks until done
+            future.result()  # Blocks until done
 
 def click_login_button( points: tuple, delay=5000):
     # Step 1: Click Login button
