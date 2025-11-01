@@ -7,13 +7,16 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import ( QSettings 
 )
 
+import numpy
 import pygetwindow as gw
 import pyautogui
 from datetime import datetime
 
 from app.flow_layout import FlowLayout
 from app.log_factory import create_logger
+from app.ocr.ocr_util2 import ocr_read_text_from_img
 from app.pattern.image_select_dialog import ImageSelectDialog
+from app.pattern.image_select_rect_dialog import ImageSelectRectDialog
 from app.v2.window_util import WindowUtil
 from app.v3.game_scenario import AccountLoginedWarningScenario, AutoOffGameScenario, BagOpenGameScenario, GameScenario, LoginSelectCharacterScenario, LoginSelectServerScenario, ServerConnectWarnScenario, ShopOpenGameScenario, TownStuckGameScenario, UserPassLoginScenario
 
@@ -30,6 +33,26 @@ LOGIN_SCREEN_2 = 'LOGIN_SCREEN_2'
 LOGIN_SCREEN_3 = 'LOGIN_SCREEN_3'
 LOGIN_WARN = 'LOGIN_WARN'
 SERVER_CONNECT_WARN = 'SERVER_CONNECT_WARN'
+READ_TEXT_FROM_IMG = 'READ_TEXT_FROM_IMG'
+CAPTURE_WINDOW_IMG = 'CAPTURE_WINDOW_IMG'
+SELECT_IMG_RECT_REGION = 'SELECT_IMG_RECT_REGION'
+
+SCENARIOS = [
+            IN_TOWN,
+            BAG_OPEN,
+            SHOP_OPEN,
+            AUTO_OFF,
+            LOGIN_SCREEN_1,
+            LOGIN_SCREEN_2,
+            LOGIN_SCREEN_3,
+            LOGIN_WARN,
+            SERVER_CONNECT_WARN
+        ]
+TEST_ACTIONS = SCENARIOS + [
+    READ_TEXT_FROM_IMG,
+    CAPTURE_WINDOW_IMG,
+    SELECT_IMG_RECT_REGION
+    ]
 
 class TestDialog(QDialog):
     town_stuck_game_scenario: TownStuckGameScenario = None
@@ -45,40 +68,28 @@ class TestDialog(QDialog):
         self.setWindowTitle("Test scenario")
         self.resize(600, 400)
 
-        self.scenarios = [
-            IN_TOWN,
-            BAG_OPEN,
-            SHOP_OPEN,
-            AUTO_OFF,
-            LOGIN_SCREEN_1,
-            LOGIN_SCREEN_2,
-            LOGIN_SCREEN_3,
-            LOGIN_WARN,
-            SERVER_CONNECT_WARN
-        ]
+        self.selected_action = None
+        self.selected_region = {}
+        self.selected_window_title = None
+        self.image_path = None
+        self.pattern_points = []
 
-        self.selected_scenario = None
         self.pattern_name_input = QLineEdit(self)
         self.pattern_name_input.setPlaceholderText("Enter pattern name or window title filter")
 
         # 1. Initialize the button
         self.test_button = self.create_test_button()
-        self.test_button.clicked.connect(self.on_test)
+        self.test_button.clicked.connect(self.on_test_execute)
 
         self.window_list = QListWidget(self)
-        self.scenario_list = QListWidget(self)
-        for item in self.scenarios:
-            self.scenario_list.addItem(item)
-
-        self.capture_button = QPushButton("Capture Image", self)
-        self.capture_button.setEnabled(False)
-        self.capture_button.clicked.connect(self.capture_window_image)
+        self.action_list = QListWidget(self)
+        for item in TEST_ACTIONS:
+            self.action_list.addItem(item)
 
         self.window_list.itemSelectionChanged.connect(self.on_window_selected)
-        self.scenario_list.itemSelectionChanged.connect(self.on_scenario_selected)
+        self.action_list.itemSelectionChanged.connect(self.on_action_selected)
 
-        self.point_output = QTextEdit(self)
-        self.point_output.setReadOnly(True)
+        self.result_output = QLabel(self)
 
         self.select_image_button = QPushButton("Select Points", self)
         self.select_image_button.setEnabled(False)
@@ -101,12 +112,11 @@ class TestDialog(QDialog):
 
         window_list_layout = QVBoxLayout()
         window_list_layout.addWidget(self.window_list)
-        window_list_layout.addWidget(self.capture_button)
         window_list_layout.addWidget(self.refresh_button)
         list_layout.addLayout(window_list_layout)
 
         scenario_layout = QVBoxLayout()
-        scenario_layout.addWidget(self.scenario_list)
+        scenario_layout.addWidget(self.action_list)
         scenario_layout.addWidget(self.test_button)
         list_layout.addLayout(scenario_layout)
 
@@ -115,19 +125,15 @@ class TestDialog(QDialog):
         layout.addWidget(self.pattern_name_input)
         layout.addWidget(button_container)
         layout.addWidget(QLabel("Captured Points (pos + RGB):"))
-        layout.addWidget(self.point_output)
+        layout.addWidget(self.result_output)
 
         self.setLayout(layout)
-
-        self.selected_window_title = None
-        self.image_path = None
-        self.pattern_points = []
 
         self.populate_window_list()
 
     def create_test_button(self):
          # 1. Initialize the button
-        test_button = QPushButton('Test')
+        test_button = QPushButton('Execute Test')
         
         # 2. Assign an object name so the style sheet can target it specifically
         test_button.setObjectName('test_button')
@@ -163,27 +169,93 @@ class TestDialog(QDialog):
             if win.strip() and (title_filter in win.lower()):
                 self.window_list.addItem(win)
 
-    def on_test(self):
-        LOGGER.info(f'test {self.selected_scenario} on window {self.selected_window_title}')
-        scenario: GameScenario = self.create_scenario(name=self.selected_scenario, settings=self.settings)
-        windows = WindowUtil.find_game_windows(self.selected_window_title)
-        selected_window = windows[0]
-        WindowUtil.focus(selected_window)
-        screenshot = WindowUtil.screen_shot(selected_window)
-        scenario.detect_and_solve(selected_window, screenshot)
+    def on_test_execute(self):
+        if (self.selected_action in SCENARIOS) and self.selected_window_title:
+            LOGGER.info(f'test {self.selected_action} on window {self.selected_window_title}')
+            scenario: GameScenario = self.create_scenario(name=self.selected_action, settings=self.settings)
+            windows = WindowUtil.find_game_windows(self.selected_window_title)
+            selected_window = windows[0]
+            WindowUtil.focus(selected_window)
+            screenshot = WindowUtil.screen_shot(selected_window)
+            scenario.detect_and_solve(selected_window, screenshot)
+        elif self.selected_action == CAPTURE_WINDOW_IMG and self.selected_window_title:
+            LOGGER.info(f'test capture window image')
+            self.capture_window_image()
+        elif self.selected_action == READ_TEXT_FROM_IMG and self.image_path is not None:
+            LOGGER.info(f"Test OCR read text from {self.image_path}")
+            self.read_text_from_img()
+        elif self.selected_action == SELECT_IMG_RECT_REGION and self.image_path is not None:
+            LOGGER.info(f"Select rect region from image {self.image_path}")
+            self.select_img_rect_region()
 
     def on_window_selected(self):
         selected_items = self.window_list.selectedItems()
         if selected_items:
             self.selected_window_title = selected_items[0].text()
-            self.capture_button.setEnabled(True)
 
-    def on_scenario_selected(self):
-        selected_items = self.scenario_list.selectedItems()
+    def on_action_selected(self):
+        selected_items = self.action_list.selectedItems()
         if selected_items:
-            self.selected_scenario = selected_items[0].text()
-            if self.selected_window_title:
-                self.test_button.setEnabled(True)
+            self.selected_action = selected_items[0].text()
+        if not self.selected_action: return
+
+        if self.selected_action in SCENARIOS and self.selected_window_title is not None:
+            self.test_button.setEnabled(True)
+        elif self.selected_action == CAPTURE_WINDOW_IMG and self.selected_window_title is not None:
+            self.test_button.setEnabled(True)
+        elif self.selected_action == READ_TEXT_FROM_IMG and self.image_path is not None:
+            self.test_button.setEnabled(True)
+        elif self.selected_action == SELECT_IMG_RECT_REGION and self.image_path is not None:
+            self.test_button.setEnabled(True)
+        else: 
+            self.test_button.setEnabled(False)
+
+    def select_img_rect_region(self):
+        dlg = ImageSelectRectDialog(self, self.image_path, self.on_rect_selected)
+        dlg.exec()
+
+    def on_rect_selected(self, rect: tuple, size: tuple):
+        print(f'rect selected: {rect} - size: {size}')
+        self.selected_region = {
+            'x': rect[0],
+            'y': rect[1],
+            'w': rect[2],
+            'h': rect[3],
+            'parent_w': size[0],
+            'parent_h': size[1]
+        }
+        self.result_output.setText(f'selected region: {rect} / parent image size: {size}')
+    
+    def read_text_from_img(self):
+        """
+        Runs the OCR detection on the latest captured image and reports the result.
+        """
+        if not self.image_path:
+            QMessageBox.warning(self, "Image Missing", "Please capture a window image first.")
+            return
+
+        self.result_output.clear()
+        result = (f"Running OCR detection on: {os.path.basename(self.image_path)}...\n")
+        
+        hsv_lower_range = numpy.array([50, 70, 130])
+        hsv_upper_range = numpy.array([70, 255, 255])
+        cropt_rect = []
+        # Call the OCR utility function
+        detected_text = ocr_read_text_from_img(self.image_path, hsv_lower_range, hsv_upper_range)
+        
+        if detected_text and not detected_text.startswith("OCR_ERROR"):
+            result_message = f"Detected Map Name: '{detected_text}'"
+            result += "--- RESULT ---\n"
+            result += "\n" + result_message
+            QMessageBox.information(self, "OCR Test Result", result_message)
+        else:
+            error_message = f"Detection Failed: {detected_text}"
+            result += "\n" + error_message
+            QMessageBox.critical(self, "OCR Test Failed", error_message)
+        self.result_output.setText(result)
+            
+        LOGGER.info(f'Test {self.selected_action} on window {self.selected_window_title} result: {detected_text}')
+
 
     def capture_window_image(self):
         windows = WindowUtil.find_game_windows(self.selected_window_title)
@@ -224,7 +296,7 @@ class TestDialog(QDialog):
             x, y = pos
             r, g, b = color
             self.pattern_points.append((*pos, *color))
-            self.point_output.append(f"{x,y,r,g,b}")
+            self.result_output.append(f"{x,y,r,g,b}")
 
         dialog = ImageSelectDialog(parent=self, image_path=self.image_path, on_point_selected=on_point_selected)
         dialog.exec()
