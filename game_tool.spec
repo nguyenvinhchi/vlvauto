@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['game_icon_129066.ico'],
+    icon=['centaur.png'],
 )

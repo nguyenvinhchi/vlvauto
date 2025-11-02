@@ -3,8 +3,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap, QImage
 import cv2
 import numpy as np
-from PIL import Image
-import io
 
 class TransformColorDialog(QDialog):
     def __init__(self, image_path, lower, upper, save_path, parent=None):
@@ -18,6 +16,7 @@ class TransformColorDialog(QDialog):
         self.image = cv2.imread(image_path)
         self.hsv = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
         self.filtered_image = None
+        self.masked = None
 
         self.init_ui()
         self.update_preview()
@@ -32,7 +31,7 @@ class TransformColorDialog(QDialog):
         self.sliders = {}
 
         labels = ["H_low", "S_low", "V_low", "H_high", "S_high", "V_high"]
-        ranges = [(0, 179), (0, 255), (0, 255)] * 2  # HSV valid ranges
+        ranges = [(0, 255), (0, 255), (0, 255)] * 2  # HSV valid ranges
         values = self.lower + self.upper
 
         for i, (label, (rmin, rmax), val) in enumerate(zip(labels, ranges, values)):
@@ -58,9 +57,10 @@ class TransformColorDialog(QDialog):
 
         mask = cv2.inRange(self.hsv, np.array(self.lower), np.array(self.upper))
         result = cv2.bitwise_and(self.image, self.image, mask=mask)
+        self.result = result
 
         # Convert BGR to RGB and show using QPixmap
-        result_rgb = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+        result_rgb = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
         self.filtered_image = result_rgb
         height, width, channel = result_rgb.shape
         bytes_per_line = 3 * width
@@ -69,6 +69,7 @@ class TransformColorDialog(QDialog):
         self.image_label.setPixmap(pixmap)
 
     def save_result(self):
-        if self.filtered_image is not None:
-            cv2.imwrite(self.save_path, cv2.cvtColor(self.filtered_image, cv2.COLOR_RGB2BGR))
+        if self.result is not None:
+            cv2.imwrite(self.save_path, self.result)
+            # cv2.imwrite(self.save_path, cv2.cvtColor(self.filtered_image, cv2.COLOR_RGB2BGR))
             self.accept()

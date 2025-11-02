@@ -7,8 +7,17 @@ import pytesseract
 # --- Configuration ---
 # 1. SET THIS TO YOUR CAPTURED IMAGE PATH
 # You must first capture an image using your TestDialog before running this script.
-image_path = "data/img/maps/PhuongTuong/VLV-A1-1-20251018_144753.png" # RENAME THIS TO YOUR ACTUAL CAPTURE FILE!
-image_path = "data/tmp/VLV-A1-1-20251018_151122.png"
+
+image_paths = [
+    "data/tmp/towns/VLV-A1-1-20251101_224743.png",
+    "data/tmp/towns/VLV-A1-1-20251101_231836.png",
+    "data/tmp/towns/VLV-A1-1-20251101_231932.png",
+    "data/tmp/towns/VLV-A1-1-20251101_231951.png",
+    "data/tmp/towns/VLV-A1-1-20251101_232035.png",
+    "data/tmp/towns/VLV-A1-1-20251101_232143.png",
+    "data/tmp/towns/VLV-A1-1-20251101_232251.png",
+    "data/tmp/towns/VLV-A1-1-20251101_232327.png"
+]
 
 # 2. OUTPUT FOLDER
 OUTPUT_SCAN_DIR = os.path.join("data/tmp", "hsv_scans")
@@ -24,14 +33,16 @@ HUE_UPPER = 70
 # Scanning from low (dull/dark) to high (vibrant/bright)
 SATURATION_RANGE = range(70, 110, 10)  # e.g., 100, 120, 140, 160, 180
 VALUE_RANGE = range(130, 255, 10)       # e.g., 100, 120, 140, 160, 180
-
-
 def scan_hsv_ranges():
+    for image_path in image_paths:
+        scan_hsv(image_path)
+
+def scan_hsv(image_path: str):
     """
     Loads the input image and applies various HSV lower-bound filters 
     to help the user visually determine the optimal Saturation and Value.
     """
-    print(f"Starting HSV scan process. Outputting to: {OUTPUT_SCAN_DIR}")
+    # print(f"Starting HSV scan process. Outputting to: {OUTPUT_SCAN_DIR}")
     
     # --- 1. Load Image and Define Dynamic Crop Region ---
     try:
@@ -47,10 +58,10 @@ def scan_hsv_ranges():
     h_orig, w_orig, _ = img.shape
     
     # Calculate dynamic crop region based on 1/4 image height and 85% width start.
-    x1_p = int(w_orig * 0.85)
-    y1_p = 0
-    x2_p = w_orig
-    y2_p = int(h_orig * 0.25) # 1/4 of the image height
+    x1_p = 1438
+    y1_p = 55
+    x2_p = x1_p + 153
+    y2_p = y1_p + 80 # 1/4 of the image height
 
     # Crop the Image to GENEROUS Dynamic Top-Right Region
     cropped_img = img[y1_p:y2_p, x1_p:x2_p]
@@ -88,7 +99,7 @@ def scan_hsv_ranges():
                 # --- 2. Crop the Image to GENEROUS Dynamic Top-Right Region ---
                 cropped_img = img[y1_p:y2_p, x1_p:x2_p]
                 if cropped_img.size == 0:
-                    print("Cropped image is empty.")
+                    # print("Cropped image is empty.")
                     return ""
 
                 # Create mask: White where the color is green, black otherwise
@@ -98,7 +109,7 @@ def scan_hsv_ranges():
                 contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
                 if not contours:
-                    print("No green text (contours) detected within the top-right region.")
+                    # print("No green text (contours) detected within the top-right region.")
                     final_img_for_ocr = mask # Fallback to the full mask
                 else:
                     # Find the bounding box that encompasses ALL found green text contours
@@ -127,7 +138,7 @@ def scan_hsv_ranges():
                         final_img_for_ocr = mask[y1_dynamic:y2_dynamic, x1_dynamic:x2_dynamic]
                         #print(f"Dynamically cropped ROI: ({x1_dynamic}, {y1_dynamic}) to ({x2_dynamic}, {y2_dynamic}) relative to initial crop.")
                     else:
-                        print("Contours found but bounding box was invalid. Using full mask.")
+                        # print("Contours found but bounding box was invalid. Using full mask.")
                         final_img_for_ocr = mask
                         
                 # --- 4. Final Image for Tesseract (the dynamically cropped mask) ---
@@ -138,16 +149,16 @@ def scan_hsv_ranges():
                 # Tesseract needs the 'vie' language pack installed.
                 config = '--psm 7 --oem 3 -l vie'
                 text = pytesseract.image_to_string(gray_img, config=config).strip()
-                if len(text) > 5:
-                    print(f"====text: {text}")
+                # if len(text) > 5:
+                #     print(f"====text: {text}")
 
-                if text in ("Phượng Tường", "PHƯỢNG TƯỜNG", "phượng tường"):
-                    print(f'======OCR SUCCESS - lower: {lower_green} - upper: {upper_green}')
+                if text in ("Phượng Tường", "Dương Châu", "Đại Lý", "Lâm An", "Thành Đô", "Tương Dương", "Biện Kinh"):
+                    print(f'======{text} - OCR SUCCESS - lower: {lower_green} - upper: {upper_green}')
                     # Save the filtered image for debugging (as requested by the user)
-                    filename = f"filtered_H{HUE_LOWER}-{HUE_UPPER}_S{s_val}_V{v_val}.png"
-                    debug_path = os.path.join(OUTPUT_SCAN_DIR, filename)
-                    cv2.imwrite(debug_path, final_img_for_ocr)
-                    print(f"Generated {filename}")
+                    # filename = f"filtered_H{HUE_LOWER}-{HUE_UPPER}_S{s_val}_V{v_val}.png"
+                    # debug_path = os.path.join(OUTPUT_SCAN_DIR, filename)
+                    # cv2.imwrite(debug_path, final_img_for_ocr)
+                    # print(f"Generated {filename}")
 
 
             except pytesseract.TesseractNotFoundError:

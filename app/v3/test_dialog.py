@@ -1,12 +1,15 @@
 import os
+import PIL
 from PyQt6.QtWidgets import (
     QDialog, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
     QLineEdit, QListWidget, QTextEdit, QMessageBox,
     QWidget, QFileDialog
 )
-from PyQt6.QtCore import ( QSettings 
+from PyQt6.QtCore import ( QSettings, Qt
 )
 
+
+import cv2
 import numpy
 import pygetwindow as gw
 import pyautogui
@@ -14,7 +17,7 @@ from datetime import datetime
 
 from app.flow_layout import FlowLayout
 from app.log_factory import create_logger
-from app.ocr.ocr_util2 import ocr_read_text_from_img
+from app.ocr.ocr_util import read_text_from_image
 from app.pattern.image_select_dialog import ImageSelectDialog
 from app.pattern.image_select_rect_dialog import ImageSelectRectDialog
 from app.v2.window_util import WindowUtil
@@ -63,10 +66,20 @@ class TestDialog(QDialog):
     account_already_logined_scenario: AccountLoginedWarningScenario = None
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(None)
         self.settings = parent.settings
         self.setWindowTitle("Test scenario")
         self.resize(600, 400)
+        self.setWindowFlags(
+            Qt.WindowType.Window
+        )
+        self.setWindowModality(Qt.WindowModality.NonModal)
+        
+        settings = self.settings
+        lower_color_range = settings.value('Detection/TownStuckLowerColorRange', type=list)
+        upper_color_range = settings.value('Detection/TownStuckUpperColorRange', type=list)
+        self.lower_color_range = numpy.array(lower_color_range, dtype=numpy.uint8).flatten()
+        self.upper_color_range = numpy.array(upper_color_range, dtype=numpy.uint8).flatten()
 
         self.selected_action = None
         self.selected_region = {}
@@ -89,7 +102,7 @@ class TestDialog(QDialog):
         self.window_list.itemSelectionChanged.connect(self.on_window_selected)
         self.action_list.itemSelectionChanged.connect(self.on_action_selected)
 
-        self.result_output = QLabel(self)
+        self.result_output = QTextEdit(self)
 
         self.select_image_button = QPushButton("Select Points", self)
         self.select_image_button.setEnabled(False)
@@ -216,6 +229,7 @@ class TestDialog(QDialog):
 
     def on_rect_selected(self, rect: tuple, size: tuple):
         print(f'rect selected: {rect} - size: {size}')
+        self.current_ocr_roi_rect = (rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])
         self.selected_region = {
             'x': rect[0],
             'y': rect[1],
@@ -233,28 +247,32 @@ class TestDialog(QDialog):
         if not self.image_path:
             QMessageBox.warning(self, "Image Missing", "Please capture a window image first.")
             return
+        img = None
+        try:
+            img = PIL.Image.open(self.image_path)
+        except Exception as e:
+            print(f"Failed to load image from {self.image_path}")
+            return
 
         self.result_output.clear()
-        result = (f"Running OCR detection on: {os.path.basename(self.image_path)}...\n")
-        
-        hsv_lower_range = numpy.array([50, 70, 130])
-        hsv_upper_range = numpy.array([70, 255, 255])
-        cropt_rect = []
+
         # Call the OCR utility function
-        detected_text = ocr_read_text_from_img(self.image_path, hsv_lower_range, hsv_upper_range)
+
+        detected_text = read_text_from_image(image=img,
+            lower_color=self.lower_color_range, 
+            upper_color=self.upper_color_range, 
+            roi_crop_box=self.current_ocr_roi_rect)
         
         if detected_text and not detected_text.startswith("OCR_ERROR"):
-            result_message = f"Detected Map Name: '{detected_text}'"
-            result += "--- RESULT ---\n"
-            result += "\n" + result_message
-            QMessageBox.information(self, "OCR Test Result", result_message)
+            result = f"Detected text of ROI {self.current_ocr_roi_rect} => '{detected_text}'"
+            QMessageBox.information(self, "OCR Test Result", result)
         else:
             error_message = f"Detection Failed: {detected_text}"
-            result += "\n" + error_message
+            result = error_message
             QMessageBox.critical(self, "OCR Test Failed", error_message)
         self.result_output.setText(result)
             
-        LOGGER.info(f'Test {self.selected_action} on window {self.selected_window_title} result: {detected_text}')
+        print(f'Test {self.selected_action} on window {self.selected_window_title} result: {detected_text}')
 
 
     def capture_window_image(self):
@@ -297,7 +315,7 @@ class TestDialog(QDialog):
             r, g, b = color
             self.pattern_points.append((*pos, *color))
             self.result_output.append(f"{x,y,r,g,b}")
-
+        self.result_output.clear()
         dialog = ImageSelectDialog(parent=self, image_path=self.image_path, on_point_selected=on_point_selected)
         dialog.exec()
 

@@ -15,7 +15,7 @@ rm -rf "$BUILD_FOLDER" "$DIST_FOLDER" "$SPEC_FILE"
 echo "🚀 Building executable with PyInstaller..."
 pyinstaller --noconfirm --onefile --windowed "$SCRIPT" \
   --name game_tool \
-  --icon game_icon_129066.ico \
+  --icon centaur.png \
   --add-data "data${PATH_SEPARATOR}data"
 
 # Done

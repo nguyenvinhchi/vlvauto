@@ -7,6 +7,7 @@ import numpy as np
 from PyQt6.QtCore import QObject, QSettings, QDateTime
 from app.detect_game_widget import detect_pattern, read_image_file
 from app.log_factory import create_logger
+from app.ocr.ocr_util import read_text_from_image
 from app.v2.resolver import Resolver
 from app.v2.window_util import WindowUtil
 
@@ -162,11 +163,8 @@ class TownStuckGameScenario(GameScenario):
         self.move_around_y_offset = settings.value("Detection/TownStuckMoveOffsetY", 380, type=int)
         self.TOWN_STUCK_SECONDS = settings.value("Detection/TownStuckTimeout", 20, type=int)
         self.COOLDOWN_SECONDS = settings.value("Detection/CooldownSeconds", 5, type=int) # prevent immediate re-match
-        self.TOWN_NAME_THRESHOLD = settings.value("Detection/TownNameGreenThreshold", 0.7, type=float)
-        images = settings.value('Detection/TownImages', type=list)
-        self.town_images = [
-            read_image_file(img_path) for img_path in images
-        ]
+        self.town_names =  settings.value('Detection/TownNames', type=list)
+        
         self.lower_color_range = settings.value('Detection/TownStuckLowerColorRange', type=list)
         self.upper_color_range = settings.value('Detection/TownStuckUpperColorRange', type=list)
         self.lower_color_range = np.array(self.lower_color_range, dtype=np.uint8).flatten()
@@ -179,18 +177,32 @@ class TownStuckGameScenario(GameScenario):
         points = settings.value('Detection/GameAutoButtonPoints', type=str)
         self.game_auto_points = (ast.literal_eval(points),)
 
+        # Small map crop region should be x1=g_w - roi_w, y1=3, x2=g_w - 3, y2=roi_h
+        smallmap_roi_x, smallmap_roi_y, smallmap_roid_w, smallmap_roid_h = ast.literal_eval(settings.value('Detection/SmallMapRoiSize', type=str))
+        # gamewindow_w, _ = ast.literal_eval(settings.value('Detection/GameWindowSize', type=str))
+        self.smallmap_crop_rect = smallmap_roi_x, smallmap_roi_y, smallmap_roi_x + smallmap_roid_w, smallmap_roi_y + smallmap_roid_h
+
         
+    def crop_roi_smallmap(self, screenshot):
+        try:
+            cropped_img = screenshot.crop(self.smallmap_crop_rect)
+            print(f'cropped small map region: {self.smallmap_crop_rect}')
+            return cropped_img
+        except Exception as e:
+            return screenshot
+
     def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
         try:
-            bgr_img = self.to_numpy_bgr_image(screenshot)
-            elapsed_seconds = self._get_stuck_elaped_seconds(game_window, bgr_img, game_tab_id)
+            # screenshot = self.crop_roi_smallmap(screenshot)
+            # bgr_img = self.to_numpy_bgr_image(screenshot)
+            elapsed_seconds = self._get_stuck_elaped_seconds(game_window, screenshot, game_tab_id)
             # it's time to solve the stuck
             if elapsed_seconds is not None:
-                LOGGER.debug(f"Town stuck elaped time: {elapsed_seconds} - {game_tab_id}")
+                print(f"Town stuck elaped time: {elapsed_seconds} - {game_tab_id}")
 
                 # Cooldown check
                 if elapsed_seconds < self.COOLDOWN_SECONDS:
-                    LOGGER.debug(f"⏳ In cooldown period, skipping... - {game_tab_id}")
+                    print(f"⏳ In cooldown period, skipping... - {game_tab_id}")
                 
                 if elapsed_seconds >= self.TOWN_STUCK_SECONDS:
                     LOGGER.info(f'stuck in town for {elapsed_seconds}, try to solve - {game_tab_id}')
@@ -201,34 +213,37 @@ class TownStuckGameScenario(GameScenario):
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve town stuck: {e}', exc_info=True)
 
-    def to_numpy_bgr_image(self, screenshot):
-        rgb_img = np.array(screenshot) # screeshot is PIL Image so we need to convert to numpy
-        bgr_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
-        return bgr_img
-
-    def _detect_town_stuck(self, pattern_img, screenshot_img):
-        
-        return detect_pattern(pattern_img, screenshot_img,
-                              lower_color_range=self.lower_color_range,
-                              upper_color_range=self.upper_color_range,
-                              threshold=self.TOWN_NAME_THRESHOLD
-                              )
+    # def to_numpy_bgr_image(self, screenshot):
+    #     rgb_img = np.array(screenshot) # screeshot is PIL Image so we need to convert to numpy
+    #     bgr_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
+    #     return bgr_img
 
     def _get_stuck_elaped_seconds(self, game_window, screenshot, game_tab_id):
-        for pattern_img in self.town_images:
-            match = self._detect_town_stuck(pattern_img, screenshot)
-            if match is None:
-                continue
-            
+        
+        text = read_text_from_image(image=screenshot,
+                                lower_color=self.lower_color_range,
+                              upper_color=self.upper_color_range,
+                              roi_crop_box=self.smallmap_crop_rect
+                              )
+        if text is None:
+            return
+
+        match = None
+        for name in self.town_names:
+            if name in text:
+                print(f'Found Town: {text}')
+                match = True
+        if match:
             last_seen: QDateTime = self.get_game_data(game_tab_id, LAST_SEEN_TOWN_STUCK)
+            print(f'Found stuck in town: {text}')
             if last_seen is None:
                 self.set_game_data(game_tab_id, LAST_SEEN_TOWN_STUCK, QDateTime.currentDateTime())
                 return None
             else:
                 duration = last_seen.secsTo(QDateTime.currentDateTime())
-                LOGGER.info(f'Found Town stuck, elapsed seconds: {duration} - {game_tab_id}')
+                LOGGER.info(f'Town stuck - elapsed seconds: {duration} - {game_tab_id}')
                 return duration
-
+        
         # No match found, reset
         self.set_game_data(game_tab_id, LAST_SEEN_TOWN_STUCK, None)
         return None

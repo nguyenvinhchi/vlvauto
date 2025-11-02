@@ -32,8 +32,8 @@ class ScreenCaptureWindow(QWidget):
         self.origin_image = None
         self.transformed_image = None
         
-        self.transform_lower_color = [38, 206, 0]
-        self.transform_upper_color = [94, 255, 165]
+        self.transform_lower_color = [53, 188, 99]
+        self.transform_upper_color = [255, 255, 255]
         # self.transform_lower_color = [0, 0, 0]
         # self.transform_upper_color = [179, 169, 215]
 
