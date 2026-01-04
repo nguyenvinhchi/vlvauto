@@ -53,7 +53,8 @@ class GameTabIterate(AutoOpenGame):
         if not main_tab_found:
             return # Skip to next game window if main tab not found
         else:
-            self.check_game_exit(hwnd, game_window)
+            if self.is_running():
+                self.check_game_exit(hwnd, game_window)
 
         # Phase 2: Iterate through game tabs until main tab is seen again
         print(f"===Worker: Starting game tab processing for window '{title}'...")
@@ -78,7 +79,7 @@ class GameTabIterate(AutoOpenGame):
             # file_name = os.path.join("tmp", game_tab_id + ".png")
             # screenshot.save(file_name)
             self.check_game_scenario(game_window, screenshot, game_tab_id)
-            time.sleep(1)
+            time.sleep(3)
         else:
             print(f"Exceeded max game tab processing iterations ({max_game_tab_processing_iterations}) for window '{game_window.title}'. May not have processed all tabs.")
 

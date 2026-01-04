@@ -34,7 +34,7 @@ def simulate_click(x, y, action='click'):
         pyautogui.doubleClick(x, y)
         print(f"🖱️ Simulated double-click at: ({x}, {y})")
 
-def simulate_mouse_drag(start_x, start_y, direction='up', distance=60, duration=0.5):
+def simulate_mouse_drag(start_x, start_y, direction='up', distance=60, duration=0.3):
     # Calculate the destination point
     if direction == 'up':
         end_x, end_y = start_x, start_y - distance

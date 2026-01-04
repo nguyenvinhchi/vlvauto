@@ -21,6 +21,7 @@ def to_str_time(timestamp: QDateTime):
 
 LAST_SEEN_LOGIN = 'last_seen_login'
 LAST_SEEN_TOWN_STUCK = 'last_seen_town_stuck'
+LAST_SEEN_THP_STUCK = 'last_seen_thp_stuck'
 
 DETECT_RETRY=3
 CLOSE_MEDICINE_BAG = "close_medicine_bag"
@@ -33,6 +34,7 @@ SELECT_SERVER_TO_LOGIN = "select_server_to_login"
 SELECT_CHARACTER_TO_LOGIN = "select_character_to_login"
 CRASH_DIALOG = "crash_dialog"
 SERVER_CONNECT="server_connect_warn"
+THP_STUCK="thp_stuck"
 
 class GameScenario(QObject):
 
@@ -93,6 +95,10 @@ class GameScenario(QObject):
 
         elif resolve_action == SERVER_CONNECT:
             Resolver.do_single_click(screen_points)
+
+        elif resolve_action == THP_STUCK:
+            Resolver.do_single_click(screen_points)
+
         else:
             LOGGER.info(f"{resolve_action} is not supported yet")
 
@@ -206,17 +212,12 @@ class TownStuckGameScenario(GameScenario):
                 
                 if elapsed_seconds >= self.TOWN_STUCK_SECONDS:
                     LOGGER.info(f'stuck in town for {elapsed_seconds}, try to solve - {game_tab_id}')
-                    self._detect_game_auto_is_off(game_window, screenshot, game_tab_id)
                     self._solve_town_stuck(game_window, game_tab_id)
+                    self._detect_game_auto_is_off(game_window, screenshot, game_tab_id)
                     # reset state
                     self.set_game_data(game_tab_id, LAST_SEEN_TOWN_STUCK, None)
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve town stuck: {e}', exc_info=True)
-
-    # def to_numpy_bgr_image(self, screenshot):
-    #     rgb_img = np.array(screenshot) # screeshot is PIL Image so we need to convert to numpy
-    #     bgr_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
-    #     return bgr_img
 
     def _get_stuck_elaped_seconds(self, game_window, screenshot, game_tab_id):
         
@@ -254,10 +255,17 @@ class TownStuckGameScenario(GameScenario):
         self.resolve_scenario(MOVE_AROUND_ABIT, game_window, points)
 
     def _detect_game_auto_is_off(self, game_window, screenshot, game_tab_id):
+        screen_points = [WindowUtil.to_screen_coord(p, game_window) for p in self.game_auto_points]
         if WindowUtil.check_pixel_pattern(game_window, screenshot, self.game_auto_off_points2, color_tolerance=2):
             LOGGER.info(f'Game auto seems off while checking town stuck for {game_tab_id} => simulate click game auto button')
-            screen_points = [WindowUtil.to_screen_coord(p, game_window) for p in self.game_auto_points]
             Resolver.do_single_click(screen_points)
+        else:
+            # game auto is ON but hang by Than Hanh Phu, need start again
+            Resolver.do_single_click(screen_points)
+            time.sleep(1)
+            Resolver.do_single_click(screen_points)
+            time.sleep(1)
+
 
 class UserPassLoginScenario(GameScenario):
     def __init__(self, settings):
@@ -377,3 +385,59 @@ class ServerConnectWarnScenario(GameScenario):
         
         except Exception as e:
             LOGGER.error(f'An error occured during  detect & solve login window: {e}', exc_info=True)
+
+class THPStuckGameScenario(GameScenario):
+    
+    def __init__(self, settings: QSettings):
+        super().__init__(settings)
+        points =  settings.value('Detection/THPStuckPoints', type=str)
+        self.thp_stuck_points = ast.literal_eval(points)
+
+        points = settings.value('Detection/GameAutoButtonPoints', type=str)
+        self.game_auto_points = (ast.literal_eval(points),)
+
+    def detect_and_solve(self, game_window, screenshot, game_tab_id="0"):
+        try:
+            # screenshot = self.crop_roi_smallmap(screenshot)
+            # bgr_img = self.to_numpy_bgr_image(screenshot)
+            elapsed_seconds = self._get_stuck_elaped_seconds(game_window, screenshot, game_tab_id)
+            # it's time to solve the stuck
+            if elapsed_seconds is not None:
+                print(f"THP stuck elaped time: {elapsed_seconds} - {game_tab_id}")
+                
+                if elapsed_seconds >= 15:
+                    LOGGER.info(f'stuck in THP for {elapsed_seconds}, try to solve - {game_tab_id}')
+                    self._solve_thp_stuck(game_window, game_tab_id)
+                    # reset state
+                    self.set_game_data(game_tab_id, LAST_SEEN_THP_STUCK, None)
+        except Exception as e:
+            LOGGER.error(f'An error occured during  detect & solve THP stuck: {e}', exc_info=True)
+
+    def _get_stuck_elaped_seconds(self, game_window, screenshot, game_tab_id):
+        
+        if WindowUtil.check_pixel_pattern(game_window, screenshot, self.thp_stuck_points):
+            last_seen: QDateTime = self.get_game_data(game_tab_id, LAST_SEEN_THP_STUCK)
+            print(f'Found THP stuck in town')
+            if last_seen is None:
+                self.set_game_data(game_tab_id, LAST_SEEN_THP_STUCK, QDateTime.currentDateTime())
+                return None
+            else:
+                duration = last_seen.secsTo(QDateTime.currentDateTime())
+                LOGGER.info(f'THP stuck - elapsed seconds: {duration} - {game_tab_id}')
+                return duration
+        
+        # No match found, reset
+        self.set_game_data(game_tab_id, LAST_SEEN_THP_STUCK, None)
+        return None
+
+    def _solve_thp_stuck(self, game_window, game_tab_id):
+        LOGGER.info(f'Try to solve THP stuck: {game_tab_id}')
+        # close THP
+        points = (self.thp_stuck_points[-1][0:2], )
+        self.resolve_scenario(THP_STUCK, game_window, points)
+        # turn auto off then on
+        screen_points = [WindowUtil.to_screen_coord(p, game_window) for p in self.game_auto_points]
+        Resolver.do_single_click(screen_points)
+        time.sleep(1)
+        Resolver.do_single_click(screen_points)
+        time.sleep(1)

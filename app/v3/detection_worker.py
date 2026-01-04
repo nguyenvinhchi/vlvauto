@@ -2,7 +2,7 @@ import os
 from PyQt6.QtCore import QObject, QTimer, pyqtSlot, QSettings
 
 from app.log_factory import create_logger
-from app.v3.game_scenario import AccountLoginedWarningScenario, AutoOffGameScenario, BagOpenGameScenario, LoginSelectCharacterScenario, LoginSelectServerScenario, ServerConnectWarnScenario, ShopOpenGameScenario, TownStuckGameScenario, UserPassLoginScenario
+from app.v3.game_scenario import AccountLoginedWarningScenario, AutoOffGameScenario, BagOpenGameScenario, LoginSelectCharacterScenario, LoginSelectServerScenario, ServerConnectWarnScenario, ShopOpenGameScenario, THPStuckGameScenario, TownStuckGameScenario, UserPassLoginScenario
 from app.v3.game_tab_iterate import GameTabIterate
 from app.v3.window_util import WindowUtil
 
@@ -34,6 +34,7 @@ class DetectionWorker(GameTabIterate, QObject):
             LoginSelectCharacterScenario(settings),
             AccountLoginedWarningScenario(settings),
             ServerConnectWarnScenario(settings),
+            THPStuckGameScenario(settings),
         ]
     
     @pyqtSlot()

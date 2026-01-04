@@ -21,7 +21,7 @@ from app.ocr.ocr_util import read_text_from_image
 from app.pattern.image_select_dialog import ImageSelectDialog
 from app.pattern.image_select_rect_dialog import ImageSelectRectDialog
 from app.v2.window_util import WindowUtil
-from app.v3.game_scenario import AccountLoginedWarningScenario, AutoOffGameScenario, BagOpenGameScenario, GameScenario, LoginSelectCharacterScenario, LoginSelectServerScenario, ServerConnectWarnScenario, ShopOpenGameScenario, TownStuckGameScenario, UserPassLoginScenario
+from app.v3.game_scenario import AccountLoginedWarningScenario, AutoOffGameScenario, BagOpenGameScenario, GameScenario, LoginSelectCharacterScenario, LoginSelectServerScenario, ServerConnectWarnScenario, ShopOpenGameScenario, THPStuckGameScenario, TownStuckGameScenario, UserPassLoginScenario
 
 TMP_DIR = "data/tmp"
 os.makedirs(TMP_DIR, exist_ok=True)
@@ -39,6 +39,7 @@ SERVER_CONNECT_WARN = 'SERVER_CONNECT_WARN'
 READ_TEXT_FROM_IMG = 'READ_TEXT_FROM_IMG'
 CAPTURE_WINDOW_IMG = 'CAPTURE_WINDOW_IMG'
 SELECT_IMG_RECT_REGION = 'SELECT_IMG_RECT_REGION'
+THP_STUCK = 'THP_STUCK'
 
 SCENARIOS = [
             IN_TOWN,
@@ -49,7 +50,8 @@ SCENARIOS = [
             LOGIN_SCREEN_2,
             LOGIN_SCREEN_3,
             LOGIN_WARN,
-            SERVER_CONNECT_WARN
+            SERVER_CONNECT_WARN,
+            THP_STUCK
         ]
 TEST_ACTIONS = SCENARIOS + [
     READ_TEXT_FROM_IMG,
@@ -64,6 +66,7 @@ class TestDialog(QDialog):
     login3_scenario: LoginSelectCharacterScenario = None
     server_connect_warn_scenario: ServerConnectWarnScenario = None
     account_already_logined_scenario: AccountLoginedWarningScenario = None
+    thp_stuck_scenario: THPStuckGameScenario = None
 
     def __init__(self, parent=None):
         super().__init__(None)
@@ -351,5 +354,9 @@ class TestDialog(QDialog):
             if TestDialog.account_already_logined_scenario is None:
                 TestDialog.account_already_logined_scenario = AccountLoginedWarningScenario(settings)
             return TestDialog.account_already_logined_scenario
+        elif name == THP_STUCK:
+            if TestDialog.thp_stuck_scenario is None:
+                TestDialog.thp_stuck_scenario = THPStuckGameScenario(settings)
+            return TestDialog.thp_stuck_scenario
         
         raise Exception(f'Scenario {name} is not supported!')
